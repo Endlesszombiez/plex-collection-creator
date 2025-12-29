@@ -49,7 +49,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { provider, credentials, model } = body;
+    const { provider, credentials } = body;
 
     // Validate provider
     if (!provider || !AI_PROVIDERS.find((p) => p.id === provider)) {
@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Save configuration (credentials will be encrypted)
-    await saveAIConfig(provider as AIProvider, credentials, model);
+    await saveAIConfig(provider as AIProvider, credentials);
 
     return NextResponse.json({
       success: true,

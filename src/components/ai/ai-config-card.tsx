@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useAIConfig } from "@/hooks/use-ai-config";
 import { AIProvider, AI_PROVIDERS, getProviderInfo } from "@/lib/ai/types";
 
@@ -65,24 +65,21 @@ export function AIConfigCard({ onComplete }: AIConfigCardProps) {
     clearTestResult,
   } = useAIConfig();
 
-  const [selectedProvider, setSelectedProvider] = useState<AIProvider>("anthropic");
+  // Use savedProvider as initial value, fallback to "anthropic" if not configured
+  const [selectedProvider, setSelectedProvider] = useState<AIProvider>(
+    savedProvider || "anthropic"
+  );
   const [credentials, setCredentials] = useState<Record<string, string>>({});
   const [showForm, setShowForm] = useState(false);
 
-  // Reset form when provider changes
-  useEffect(() => {
+  const providerInfo = getProviderInfo(selectedProvider);
+
+  // Handle provider change with form reset
+  const handleProviderChange = (provider: AIProvider) => {
+    setSelectedProvider(provider);
     setCredentials({});
     clearTestResult();
-  }, [selectedProvider, clearTestResult]);
-
-  // Initialize form state based on saved config
-  useEffect(() => {
-    if (configured && savedProvider) {
-      setSelectedProvider(savedProvider);
-    }
-  }, [configured, savedProvider]);
-
-  const providerInfo = getProviderInfo(selectedProvider);
+  };
 
   const handleFieldChange = (key: string, value: string) => {
     setCredentials((prev) => ({ ...prev, [key]: value }));
@@ -179,7 +176,7 @@ export function AIConfigCard({ onComplete }: AIConfigCardProps) {
           {AI_PROVIDERS.map((provider) => (
             <button
               key={provider.id}
-              onClick={() => setSelectedProvider(provider.id)}
+              onClick={() => handleProviderChange(provider.id)}
               className={`
                 flex flex-col items-start p-3 rounded-lg text-left transition-all
                 ${selectedProvider === provider.id

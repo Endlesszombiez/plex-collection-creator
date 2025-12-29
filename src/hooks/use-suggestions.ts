@@ -2,16 +2,33 @@
 
 import { useState, useCallback, useEffect } from "react";
 
+/**
+ * Enriched item with title and year for display.
+ */
+export interface SuggestionItem {
+  ratingKey: string;
+  title: string;
+  year?: number;
+}
+
 export interface Suggestion {
   id: number;
   scanId: number | null;
   collectionName: string;
   reasoning: string | null;
-  items: string[];
+  items: SuggestionItem[];
   itemCount: number;
   status: "pending" | "approved" | "rejected" | "applied";
   customPrompt: string | null;
   createdAt: Date;
+}
+
+/**
+ * Parse items from DB format.
+ */
+export function parseItems(items: unknown): SuggestionItem[] {
+  if (!Array.isArray(items)) return [];
+  return items as SuggestionItem[];
 }
 
 interface UseSuggestionsReturn {
@@ -43,7 +60,12 @@ export function useSuggestions(statusFilter?: string): UseSuggestionsReturn {
       const data = await response.json();
 
       if (data.success) {
-        setSuggestions(data.suggestions);
+        // Normalize items to handle both old and new formats
+        const normalized = data.suggestions.map((s: Suggestion & { items: unknown }) => ({
+          ...s,
+          items: parseItems(s.items),
+        }));
+        setSuggestions(normalized);
       } else {
         setError(data.error || "Failed to fetch suggestions");
       }

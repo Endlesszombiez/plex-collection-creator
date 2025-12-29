@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import { AIProvider, AI_PROVIDERS, getProviderInfo } from "@/lib/ai/types";
+import { AIProvider, getProviderInfo } from "@/lib/ai/types";
 
 interface AIConfigState {
   configured: boolean;

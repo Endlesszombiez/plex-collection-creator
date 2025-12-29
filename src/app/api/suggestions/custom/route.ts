@@ -3,8 +3,8 @@ import { getLibraryItems, PlexMediaItem, getExistingCollections, PlexCollection 
 import { getPlexToken } from "@/lib/plex/auth";
 import { getConfiguredAIModel } from "@/lib/ai/provider";
 import {
-  COLLECTION_ANALYSIS_SYSTEM_PROMPT,
-  createCollectionAnalysisPrompt,
+  CUSTOM_ANALYSIS_SYSTEM_PROMPT,
+  createCustomAnalysisPrompt,
   parseAIResponse,
   validateCollections,
 } from "@/lib/ai/prompts";
@@ -69,13 +69,14 @@ function enrichItems(
 }
 
 /**
- * GET /api/suggestions/generate
- * Generate AI collection suggestions via SSE.
+ * GET /api/suggestions/custom
+ * Generate AI collection suggestions based on a custom prompt via SSE.
  */
 export async function GET(request: Request) {
   const encoder = new TextEncoder();
   const { searchParams } = new URL(request.url);
   const scanIdParam = searchParams.get("scanId");
+  const customPrompt = searchParams.get("prompt");
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -84,6 +85,13 @@ export async function GET(request: Request) {
       };
 
       try {
+        // Validate custom prompt
+        if (!customPrompt || customPrompt.trim().length === 0) {
+          send({ type: "error", phase: "loading", error: "Custom prompt is required" });
+          controller.close();
+          return;
+        }
+
         // Get AI model
         send({ type: "progress", phase: "loading", message: "Loading AI configuration..." });
 
@@ -212,24 +220,24 @@ export async function GET(request: Request) {
         send({
           type: "progress",
           phase: "analyzing",
-          message: `Analyzing ${allMovies.length} movies and ${allShows.length} TV shows (${existingCollections.length} existing collections)...`,
+          message: `Searching ${allMovies.length} movies and ${allShows.length} TV shows...`,
           totalItems,
         });
 
-        // Create prompt with existing collections context
-        const prompt = createCollectionAnalysisPrompt(allMovies, allShows, existingCollections);
+        // Create custom prompt with existing collections context
+        const prompt = createCustomAnalysisPrompt(allMovies, allShows, customPrompt, existingCollections);
 
         const { text: aiResponse } = await generateText({
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           model: model as any,
-          system: COLLECTION_ANALYSIS_SYSTEM_PROMPT,
+          system: CUSTOM_ANALYSIS_SYSTEM_PROMPT,
           prompt,
         });
 
         send({
           type: "progress",
           phase: "saving",
-          message: "Processing AI suggestions...",
+          message: "Processing AI results...",
         });
 
         // Parse and validate response
@@ -242,27 +250,7 @@ export async function GET(request: Request) {
         const validatedCollections = validateCollections(parsedCollections, validKeys);
 
         if (validatedCollections.length === 0) {
-          // Provide context-aware message instead of generic error
-          const hasExisting = existingCollections.length > 0;
-          const aiReturnedSome = parsedCollections.length > 0;
-
-          let message: string;
-          if (hasExisting && !aiReturnedSome) {
-            message = `No new collections found. You already have ${existingCollections.length} collections in Plex. Try a custom search for specific themes.`;
-          } else if (aiReturnedSome) {
-            message = "AI suggested collections, but none had enough valid items (minimum 2 required).";
-          } else {
-            message = "AI couldn't identify meaningful collection patterns in your library.";
-          }
-
-          // Return as completion with 0 suggestions, not as error
-          send({
-            type: "complete",
-            phase: "complete",
-            message,
-            suggestionsCount: 0,
-            suggestionIds: [],
-          });
+          send({ type: "error", phase: "saving", error: "No items matching your criteria were found" });
           controller.close();
           return;
         }
@@ -270,13 +258,13 @@ export async function GET(request: Request) {
         send({
           type: "progress",
           phase: "saving",
-          message: `Saving ${validatedCollections.length} suggestions...`,
+          message: `Saving ${validatedCollections.length} results...`,
         });
 
         // Build lookup map for enriching items with titles
         const mediaLookup = buildMediaLookup([...allMovies, ...allShows]);
 
-        // Save suggestions to database with enriched items
+        // Save suggestions to database with enriched items and custom prompt reference
         const suggestionIds: number[] = [];
 
         for (const collection of validatedCollections) {
@@ -292,6 +280,7 @@ export async function GET(request: Request) {
               itemCount: enrichedItems.length,
               reasoning: collection.reasoning,
               status: "pending",
+              customPrompt: customPrompt.trim(),
             })
             .returning();
 
@@ -302,14 +291,14 @@ export async function GET(request: Request) {
         send({
           type: "complete",
           phase: "complete",
-          message: `Generated ${validatedCollections.length} collection suggestions`,
+          message: `Found ${validatedCollections.length} collections matching your criteria`,
           suggestionsCount: validatedCollections.length,
           suggestionIds,
         });
 
         controller.close();
       } catch (error) {
-        console.error("Analysis error:", error);
+        console.error("Custom analysis error:", error);
         send({
           type: "error",
           phase: "analyzing",

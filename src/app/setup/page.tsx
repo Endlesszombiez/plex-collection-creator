@@ -6,7 +6,7 @@ import { AIConfigCard } from "@/components/ai/ai-config-card";
 import { usePlexAuth } from "@/hooks/use-plex-auth";
 import { useAIConfig } from "@/hooks/use-ai-config";
 import { useSavedLibraries } from "@/hooks/use-saved-libraries";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 
 function StepCircle({
@@ -65,18 +65,14 @@ function StepLabel({
 }
 
 export default function SetupPage() {
-  const { status, isLoading } = usePlexAuth();
+  const { status } = usePlexAuth();
   const { configured: aiConfigured } = useAIConfig();
   const { hasSavedSelection } = useSavedLibraries();
   const isPlexConnected = status?.connected ?? false;
-  const [librariesSelected, setLibrariesSelected] = useState(false);
+  const [localLibrariesSelected, setLibrariesSelected] = useState(false);
 
-  // Sync librariesSelected with saved state
-  useEffect(() => {
-    if (hasSavedSelection) {
-      setLibrariesSelected(true);
-    }
-  }, [hasSavedSelection]);
+  // Libraries are selected if either saved from DB or just selected in this session
+  const librariesSelected = hasSavedSelection || localLibrariesSelected;
 
   return (
     <div className="min-h-screen bg-[#1a1a1a] relative overflow-hidden">

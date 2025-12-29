@@ -76,9 +76,14 @@ export function AIAnalysisCard({ scanId, movieCount, showCount }: AIAnalysisCard
             </div>
           </div>
 
-          {status === "complete" && (
+          {status === "complete" && suggestionsCount > 0 && (
             <div className="px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/20 text-emerald-400">
               {suggestionsCount} Suggestions
+            </div>
+          )}
+          {status === "complete" && suggestionsCount === 0 && (
+            <div className="px-3 py-1 rounded-full text-xs font-medium bg-[#E5A00D]/20 text-[#E5A00D]">
+              Up to date
             </div>
           )}
           {status === "error" && (
@@ -130,7 +135,7 @@ export function AIAnalysisCard({ scanId, movieCount, showCount }: AIAnalysisCard
         )}
 
         {/* Complete state - show results preview */}
-        {status === "complete" && (
+        {status === "complete" && suggestionsCount > 0 && (
           <div className="mb-6 p-4 rounded-lg bg-emerald-500/5 border border-emerald-500/20">
             <div className="flex items-center gap-3">
               <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0" />
@@ -140,6 +145,23 @@ export function AIAnalysisCard({ scanId, movieCount, showCount }: AIAnalysisCard
                 </p>
                 <p className="text-xs text-white/50 mt-0.5">
                   Review and approve suggestions to create collections in Plex
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Complete with 0 suggestions - nothing new found */}
+        {status === "complete" && suggestionsCount === 0 && (
+          <div className="mb-6 p-4 rounded-lg bg-[#E5A00D]/5 border border-[#E5A00D]/20">
+            <div className="flex items-center gap-3">
+              <CheckCircle2 className="h-5 w-5 text-[#E5A00D] shrink-0" />
+              <div>
+                <p className="text-sm text-white">
+                  {progress?.message || "No new collections found"}
+                </p>
+                <p className="text-xs text-white/50 mt-0.5">
+                  Try a custom search below for specific themes or genres
                 </p>
               </div>
             </div>
@@ -174,7 +196,7 @@ export function AIAnalysisCard({ scanId, movieCount, showCount }: AIAnalysisCard
             Cancel
           </button>
         )}
-        {status === "complete" && (
+        {status === "complete" && suggestionsCount > 0 && (
           <>
             <button
               onClick={reset}
@@ -191,6 +213,15 @@ export function AIAnalysisCard({ scanId, movieCount, showCount }: AIAnalysisCard
               <ArrowRight className="h-4 w-4" />
             </Link>
           </>
+        )}
+        {status === "complete" && suggestionsCount === 0 && (
+          <button
+            onClick={reset}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-white/10 text-white font-medium text-sm hover:bg-white/20 transition-colors"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Try Again
+          </button>
         )}
         {status === "error" && (
           <button

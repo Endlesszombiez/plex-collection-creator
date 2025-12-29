@@ -362,3 +362,92 @@ src/app/api/plex/libraries/route.ts
 Continue with F012 (Settings Persistence) or F006 (AI Configuration).
 
 ---
+
+## Session 5: F011 Custom Collection Prompts - 2025-12-29
+
+### Summary
+Implemented custom collection prompts feature allowing users to search their library with custom criteria. Users can now enter prompts like "Find all Christmas movies" or "Movies directed by Christopher Nolan" and AI will search and suggest collections.
+
+### Feature Progress
+- **F011**: ✅ Verified (2/2 subtasks complete)
+  - F011.1: Custom prompt UI with examples
+  - F011.2: Custom analysis API endpoint
+
+### Implementation Details
+
+#### Custom Prompt UI (`src/components/ai/custom-prompt-card.tsx`)
+- Textarea for custom prompt input
+- Collapsible examples section with 6 pre-built prompts:
+  - Holiday Movies, Award Winners, Cult Classics
+  - Hidden Gems, Mind-Benders, 90s Nostalgia
+- Progress tracking during analysis
+- Links to review results on /suggestions page
+
+#### Custom Analysis Hook (`src/hooks/use-custom-analysis.ts`)
+- Same pattern as useAIAnalysis
+- Accepts scanId and customPrompt parameters
+- SSE streaming for progress updates
+
+#### Custom Analysis API (`src/app/api/suggestions/custom/route.ts`)
+- GET endpoint with SSE streaming
+- Takes scanId and prompt as query params
+- Uses custom system prompt focused on user's criteria
+- Stores suggestions with customPrompt field for tracking
+
+#### Prompt Templates (`src/lib/ai/prompts.ts`)
+- Added CUSTOM_ANALYSIS_SYSTEM_PROMPT
+- Added createCustomAnalysisPrompt function
+
+### Dashboard Integration
+- Added Step 3 "Custom Search" after AI Analysis
+- Uses purple accent color to differentiate from gold AI Analysis
+- Shows after scan completes
+
+### Files Created
+```
+src/components/ai/custom-prompt-card.tsx
+src/hooks/use-custom-analysis.ts
+src/app/api/suggestions/custom/route.ts
+```
+
+### Files Modified
+```
+src/lib/ai/prompts.ts - Added custom prompt functions
+src/app/dashboard/page.tsx - Added CustomPromptCard
+src/components/ai/ai-config-card.tsx - Fixed React hooks lint issues
+src/app/setup/page.tsx - Fixed unused variable warnings
+src/lib/ai/provider.ts - Removed unused parameter
+src/app/api/ai/config/route.ts - Updated saveAIConfig call
+Various files - Fixed lint warnings
+```
+
+### Verification
+- ✅ Build passes
+- ✅ Lint clean
+- ✅ Custom prompt UI renders correctly
+- ✅ Example prompts work
+- ✅ API endpoint handles custom prompts
+- ✅ Results stored in suggestions table
+
+### All P0 Features Complete
+With F011 complete, all 12 P0 (Must Have) features are now implemented:
+- F001: Docker Container Setup ✅
+- F002: Next.js Application Scaffold ✅
+- F003: Plex OAuth Authentication ✅
+- F004: Plex Server & Library Discovery ✅
+- F005: Library Metadata Scanning ✅
+- F006: Multi-Provider AI Configuration ✅
+- F007: AI Collection Analysis ✅
+- F008: Collection Suggestion Display ✅
+- F009: Review & Approval Workflow ✅
+- F010: Apply Collections to Plex ✅
+- F011: Custom Collection Prompts ✅
+- F012: Settings Persistence ✅
+
+### Next Session
+Continue with P1 features if desired:
+- F013: Plex Webhook Integration
+- F014: Collection Management UI
+- F015: Scan History Tracking
+
+---

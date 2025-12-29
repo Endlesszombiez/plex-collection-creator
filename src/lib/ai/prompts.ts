@@ -35,16 +35,38 @@ Guidelines for creating collections:
 - Avoid single-item "collections"
 - Be specific with naming (e.g., "Quentin Tarantino Films" not "Tarantino")
 
+Handling existing collections (IMPORTANT):
+- You will be given a list of collections that already exist in Plex
+- For existing collections: Check if there are MORE items in the library that belong but aren't included yet. If so, suggest adding them using the EXACT same collection name
+- For new collections: Only suggest if the idea is genuinely different from existing collections
+- It's valuable to suggest additions to existing collections - don't skip them!
+
 You MUST respond with valid JSON only. No markdown, no explanations outside JSON.`;
+
+/**
+ * Existing Plex collection info.
+ */
+export interface ExistingCollection {
+  ratingKey: string;
+  title: string;
+  childCount?: number;
+}
 
 /**
  * User prompt for collection analysis.
  */
 export function createCollectionAnalysisPrompt(
   movies: PlexMediaItem[],
-  shows: PlexMediaItem[]
+  shows: PlexMediaItem[],
+  existingCollections?: ExistingCollection[]
 ): string {
   const parts: string[] = [];
+
+  // Include existing collections to avoid duplicates
+  if (existingCollections && existingCollections.length > 0) {
+    const existingNames = existingCollections.map((c) => `- "${c.title}" (${c.childCount || 0} items)`).join("\n");
+    parts.push(`## EXISTING PLEX COLLECTIONS (DO NOT DUPLICATE)\n${existingNames}`);
+  }
 
   if (movies.length > 0) {
     parts.push(`## Movies (${movies.length} items)\n${formatMediaForAI(movies)}`);
@@ -53,6 +75,11 @@ export function createCollectionAnalysisPrompt(
   if (shows.length > 0) {
     parts.push(`## TV Shows (${shows.length} items)\n${formatMediaForAI(shows)}`);
   }
+
+  const existingWarning = existingCollections && existingCollections.length > 0
+    ? `- Review existing collections above - if you find items that SHOULD be in one but aren't, suggest adding them (use exact same name)
+- For new collection ideas, make sure they're genuinely different from existing ones`
+    : "";
 
   return `Analyze this media library and suggest collections.
 
@@ -73,7 +100,8 @@ Important:
 - Use the exact ratingKey values from the input (the numbers in brackets like [12345])
 - Only include items that actually exist in the input
 - Create 5-15 collections depending on library size
-- Each collection needs at least 2 items`;
+- Each collection needs at least 2 items
+${existingWarning}`;
 }
 
 /**
@@ -128,4 +156,80 @@ export function validateCollections(
       items: collection.items.filter((key) => validRatingKeys.has(key)),
     }))
     .filter((collection) => collection.items.length >= 2); // Require at least 2 items
+}
+
+/**
+ * System prompt for custom collection analysis.
+ */
+export const CUSTOM_ANALYSIS_SYSTEM_PROMPT = `You are an expert media librarian helping users find specific content in their Plex media library.
+
+Your task is to analyze a list of movies and/or TV shows and find items that match the user's specific criteria.
+
+Guidelines:
+- Focus ONLY on what the user is asking for - don't suggest unrelated collections
+- Group matching items into logical collections
+- Each collection should have at least 2 items (preferably 3+)
+- If you find matching items, explain WHY they match the criteria
+- Be creative in interpreting the user's request
+- If the criteria is too specific and no items match, suggest the closest alternatives
+- IMPORTANT: Do NOT suggest collections that already exist in Plex (you will be given a list)
+- If a collection already exists with a similar name, suggest adding items to it instead of creating a duplicate
+
+You MUST respond with valid JSON only. No markdown, no explanations outside JSON.`;
+
+/**
+ * User prompt for custom collection analysis.
+ */
+export function createCustomAnalysisPrompt(
+  movies: PlexMediaItem[],
+  shows: PlexMediaItem[],
+  customPrompt: string,
+  existingCollections?: ExistingCollection[]
+): string {
+  const parts: string[] = [];
+
+  // Include existing collections to avoid duplicates
+  if (existingCollections && existingCollections.length > 0) {
+    const existingNames = existingCollections.map((c) => `- "${c.title}" (${c.childCount || 0} items)`).join("\n");
+    parts.push(`## EXISTING PLEX COLLECTIONS (DO NOT DUPLICATE)\n${existingNames}`);
+  }
+
+  if (movies.length > 0) {
+    parts.push(`## Movies (${movies.length} items)\n${formatMediaForAI(movies)}`);
+  }
+
+  if (shows.length > 0) {
+    parts.push(`## TV Shows (${shows.length} items)\n${formatMediaForAI(shows)}`);
+  }
+
+  const existingWarning = existingCollections && existingCollections.length > 0
+    ? `- Do NOT create collections with names similar to the existing collections listed above
+- If you want to suggest adding items to an existing collection, use the EXACT same name`
+    : "";
+
+  return `User's request: "${customPrompt}"
+
+Search through this media library and find items that match the user's criteria.
+
+${parts.join("\n\n")}
+
+Respond with JSON in this exact format:
+{
+  "collections": [
+    {
+      "name": "Collection Name (based on what was found)",
+      "items": ["ratingKey1", "ratingKey2", "ratingKey3"],
+      "reasoning": "Explanation of why these items match the user's criteria"
+    }
+  ]
+}
+
+Important:
+- Use the exact ratingKey values from the input (the numbers in brackets like [12345])
+- Only include items that actually exist in the input
+- Create collections that directly address what the user asked for
+- If the user's criteria results in multiple distinct groups, create separate collections
+- Each collection needs at least 2 items
+- If nothing matches exactly, include the closest matches and explain in the reasoning
+${existingWarning}`;
 }

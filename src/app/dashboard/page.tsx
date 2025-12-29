@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ScanProgressCard } from "@/components/scan/scan-progress-card";
 import { AIAnalysisCard } from "@/components/ai/ai-analysis-card";
+import { CustomPromptCard } from "@/components/ai/custom-prompt-card";
+import { CollectionsSummaryCard } from "@/components/dashboard/collections-summary-card";
 import { useSavedLibraries } from "@/hooks/use-saved-libraries";
 import { useAIConfig } from "@/hooks/use-ai-config";
 import { Settings, Sparkles, Library } from "lucide-react";
@@ -139,6 +141,11 @@ export default function DashboardPage() {
             </div>
           </div>
 
+          {/* Collections Summary - shows if any collections have been created */}
+          <div className="mb-8">
+            <CollectionsSummaryCard />
+          </div>
+
           {/* Workflow Steps */}
           <div className="space-y-6">
             {/* Step 1: Scan */}
@@ -158,6 +165,22 @@ export default function DashboardPage() {
                   AI Analysis
                 </h2>
                 <AIAnalysisCard
+                  scanId={scanResults.scanId}
+                  movieCount={scanResults.movies}
+                  showCount={scanResults.shows}
+                />
+              </div>
+            )}
+
+            {/* Step 3: Custom Prompt - shown after scan complete */}
+            {scanComplete && scanResults && (
+              <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 delay-150">
+                <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                  <span className="flex items-center justify-center w-6 h-6 rounded-full bg-purple-500/20 text-xs font-bold text-purple-400">3</span>
+                  Custom Search
+                  <span className="text-xs font-normal text-white/40 ml-2">(Optional)</span>
+                </h2>
+                <CustomPromptCard
                   scanId={scanResults.scanId}
                   movieCount={scanResults.movies}
                   showCount={scanResults.shows}

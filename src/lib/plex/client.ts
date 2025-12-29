@@ -323,3 +323,44 @@ function parseMediaItem(item: PlexApiMediaItem): PlexMediaItem {
     leafCount: item.leafCount,
   };
 }
+
+/**
+ * Existing Plex collection info.
+ */
+export interface PlexCollection {
+  ratingKey: string;
+  title: string;
+  childCount?: number;
+}
+
+/**
+ * Fetch all existing collections from a Plex library section.
+ */
+export async function getExistingCollections(
+  serverUri: string,
+  accessToken: string,
+  sectionId: string
+): Promise<PlexCollection[]> {
+  const url = `${serverUri}/library/sections/${sectionId}/collections`;
+
+  const response = await fetch(url, {
+    headers: {
+      Accept: "application/json",
+      "X-Plex-Token": accessToken,
+    },
+  });
+
+  if (!response.ok) {
+    console.error("Failed to fetch collections:", response.statusText);
+    return [];
+  }
+
+  const data = await response.json();
+  const collections = data.MediaContainer?.Metadata || [];
+
+  return collections.map((c: { ratingKey: string; title: string; childCount?: number }) => ({
+    ratingKey: c.ratingKey,
+    title: c.title,
+    childCount: c.childCount,
+  }));
+}

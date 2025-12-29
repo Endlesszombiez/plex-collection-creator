@@ -5,7 +5,6 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { generateText } from "ai";
 import {
   AIProvider,
-  AICredentials,
   AnthropicCredentials,
   BedrockCredentials,
   VertexCredentials,
@@ -81,8 +80,8 @@ export async function testAIConnection(
     const model = createAIModel(provider, credentials);
 
     // Simple test prompt
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { text } = await generateText({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       model: model as any, // Type assertion needed due to AI SDK package version mismatches
       prompt: "Reply with exactly: OK",
     });
@@ -128,15 +127,9 @@ export async function testAIConnection(
  */
 export async function saveAIConfig(
   provider: AIProvider,
-  credentials: Record<string, string>,
-  model?: string
+  credentials: Record<string, string>
 ): Promise<void> {
   const encryptedCredentials = encrypt(JSON.stringify(credentials));
-
-  const config = {
-    provider,
-    model: model || getProviderInfo(provider)?.defaultModel,
-  };
 
   const existing = await db.select().from(settings).limit(1);
 
