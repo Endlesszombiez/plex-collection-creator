@@ -7,6 +7,7 @@ import { usePlexAuth } from "@/hooks/use-plex-auth";
 import { useAIConfig } from "@/hooks/use-ai-config";
 import { useSavedLibraries } from "@/hooks/use-saved-libraries";
 import { useState, useEffect } from "react";
+import Link from "next/link";
 
 function StepCircle({
   step,
@@ -224,6 +225,36 @@ export default function SetupPage() {
                 )}
               </div>
             </div>
+
+            {/* All complete - Continue to Dashboard */}
+            {isPlexConnected && librariesSelected && aiConfigured && (
+              <div className="mt-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-6">
+                  <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center justify-center w-12 h-12 rounded-full bg-emerald-500/20">
+                        <svg className="w-6 h-6 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-white text-lg">All set!</h3>
+                        <p className="text-white/60 text-sm">Your workspace is configured and ready to go</p>
+                      </div>
+                    </div>
+                    <Link
+                      href="/dashboard"
+                      className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-[#E5A00D] text-black font-semibold hover:bg-[#E5A00D]/90 transition-colors"
+                    >
+                      Continue to Dashboard
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                      </svg>
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </main>
