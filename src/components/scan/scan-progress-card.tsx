@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { useLibraryScan } from "@/hooks/use-library-scan";
 import { Film, Tv, Play, Square, Loader2, CheckCircle2, AlertCircle, RefreshCw } from "lucide-react";
 
@@ -20,10 +21,20 @@ export function ScanProgressCard({ onScanComplete }: ScanProgressCardProps) {
     reset,
   } = useLibraryScan();
 
-  // Notify parent when scan completes
-  if (status === "complete" && onScanComplete && scanId) {
-    onScanComplete(movies.length, shows.length, scanId);
-  }
+  // Track if we've already notified to prevent multiple calls
+  const hasNotified = useRef(false);
+
+  // Notify parent when scan completes (in useEffect to avoid setState during render)
+  useEffect(() => {
+    if (status === "complete" && onScanComplete && scanId && !hasNotified.current) {
+      hasNotified.current = true;
+      onScanComplete(movies.length, shows.length, scanId);
+    }
+    // Reset notification flag when status changes away from complete
+    if (status !== "complete") {
+      hasNotified.current = false;
+    }
+  }, [status, scanId, movies.length, shows.length, onScanComplete]);
 
   const progressPercent =
     progress?.totalItems && progress?.itemsFetched
