@@ -291,8 +291,8 @@
       "name": "Collection Suggestion Display",
       "description": "UI to display AI-generated collection suggestions with details",
       "priority": "P0",
-      "status": "pending",
-      "passes": false,
+      "status": "verified",
+      "passes": true,
       "implementationOrder": 9,
       "dependencies": [
         "F007"
@@ -313,15 +313,16 @@
           "estimatedHours": 2
         }
       ],
-      "source": "PRD.md#must-have-p0"
+      "source": "PRD.md#must-have-p0",
+      "verifiedAt": "2025-12-29T03:00:00.000Z"
     },
     {
       "id": "F009",
       "name": "Review & Approval Workflow",
       "description": "User can review, approve, reject, or modify suggestions before applying",
       "priority": "P0",
-      "status": "pending",
-      "passes": false,
+      "status": "verified",
+      "passes": true,
       "implementationOrder": 10,
       "dependencies": [
         "F008"
@@ -349,15 +350,16 @@
           "estimatedHours": 2
         }
       ],
-      "source": "PRD.md#must-have-p0"
+      "source": "PRD.md#must-have-p0",
+      "verifiedAt": "2025-12-29T03:00:00.000Z"
     },
     {
       "id": "F010",
       "name": "Apply Collections to Plex",
       "description": "Create approved collections in Plex via API",
       "priority": "P0",
-      "status": "pending",
-      "passes": false,
+      "status": "verified",
+      "passes": true,
       "implementationOrder": 11,
       "dependencies": [
         "F009",
@@ -380,7 +382,8 @@
           "estimatedHours": 2
         }
       ],
-      "source": "PRD.md#must-have-p0"
+      "source": "PRD.md#must-have-p0",
+      "verifiedAt": "2025-12-29T03:00:00.000Z"
     },
     {
       "id": "F011",
