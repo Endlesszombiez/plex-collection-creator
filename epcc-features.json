@@ -86,8 +86,8 @@
       "name": "Plex Server & Library Discovery",
       "description": "Fetch available Plex servers and libraries after authentication",
       "priority": "P0",
-      "status": "pending",
-      "passes": false,
+      "status": "verified",
+      "passes": true,
       "implementationOrder": 4,
       "dependencies": ["F003"],
       "estimatedHours": 4,
@@ -99,9 +99,10 @@
         "User can select which libraries to scan"
       ],
       "subtasks": [
-        {"id": "F004.1", "name": "Fetch user's Plex servers via plex.tv API", "status": "pending", "estimatedHours": 2},
-        {"id": "F004.2", "name": "Fetch libraries and filter Movies/TV Shows", "status": "pending", "estimatedHours": 2}
+        {"id": "F004.1", "name": "Fetch user's Plex servers via plex.tv API", "status": "completed", "estimatedHours": 2},
+        {"id": "F004.2", "name": "Fetch libraries and filter Movies/TV Shows", "status": "completed", "estimatedHours": 2}
       ],
+      "verifiedAt": "2025-12-29T00:00:00.000Z",
       "source": "PRD.md#must-have-p0"
     },
     {
@@ -357,12 +358,12 @@
   ],
   "metrics": {
     "total": 15,
-    "verified": 3,
+    "verified": 4,
     "inProgress": 0,
-    "pending": 12,
+    "pending": 11,
     "p0Count": 12,
     "p1Count": 3,
     "totalEstimatedHours": 50,
-    "percentComplete": 20.0
+    "percentComplete": 26.67
   }
 }

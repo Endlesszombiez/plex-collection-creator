@@ -1,7 +1,9 @@
 "use client";
 
 import { PlexConnectionCard } from "@/components/plex/plex-connection-card";
+import { LibrarySelectionCard } from "@/components/plex/library-selection-card";
 import { usePlexAuth } from "@/hooks/use-plex-auth";
+import { useState } from "react";
 
 function StepIndicator({
   step,
@@ -65,6 +67,7 @@ function StepConnector({ isComplete }: { isComplete: boolean }) {
 export default function SetupPage() {
   const { status, isLoading } = usePlexAuth();
   const isPlexConnected = status?.connected ?? false;
+  const [librariesSelected, setLibrariesSelected] = useState(false);
 
   return (
     <div className="min-h-screen bg-[#1a1a1a] relative overflow-hidden">
@@ -120,8 +123,8 @@ export default function SetupPage() {
                 <StepIndicator
                   step={3}
                   title="Select Libraries"
-                  isActive={false}
-                  isComplete={false}
+                  isActive={isPlexConnected && !librariesSelected}
+                  isComplete={librariesSelected}
                 />
               </div>
             </div>
@@ -172,6 +175,29 @@ export default function SetupPage() {
                         : "Complete step 1 to continue"}
                     </p>
                   </div>
+                </div>
+              </section>
+
+              {/* Step 3: Library Selection */}
+              <section className={`transition-opacity duration-500 ${isPlexConnected ? "opacity-100" : "opacity-40"}`}>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="md:hidden flex items-center justify-center w-8 h-8 rounded-full bg-white/5 text-white/40 text-sm font-semibold">
+                    {librariesSelected ? (
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    ) : "3"}
+                  </div>
+                  <h2 className="text-xl font-semibold text-white">Select libraries to scan</h2>
+                </div>
+                <p className="text-white/50 mb-6 text-sm md:pl-11">
+                  Choose which Plex libraries to analyze for collection suggestions
+                </p>
+                <div className="md:pl-11">
+                  <LibrarySelectionCard
+                    isPlexConnected={isPlexConnected}
+                    onComplete={() => setLibrariesSelected(true)}
+                  />
                 </div>
               </section>
             </div>

@@ -2,7 +2,7 @@
 
 **Project**: Plex Collection Creator
 **Started**: 2025-12-28
-**Progress**: 3/15 features (20.0%)
+**Progress**: 4/15 features (26.67%)
 
 ---
 
@@ -303,5 +303,62 @@ src/
 
 ### Next Session
 Continue with F004 (Plex Server & Library Discovery).
+
+---
+
+## Session 4: F004 Plex Server & Library Discovery - 2025-12-29
+
+### Summary
+Implemented server and library discovery with selection UI. Users can now see all their Plex servers, select one, and choose which movie/TV libraries to scan.
+
+### Feature Progress
+- **F004**: ✅ Verified (2/2 subtasks complete)
+  - F004.1: Fetch servers via plex.tv API
+  - F004.2: Fetch and filter libraries (Movies/TV Shows only)
+
+### Implementation Details
+
+#### Plex Client (`src/lib/plex/client.ts`)
+- `getPlexServers()` - Fetch all servers from plex.tv/api/v2/resources
+- `findWorkingConnection()` - Test and find best server connection (local > remote > relay)
+- `getServerLibraries()` - Fetch libraries from a specific server
+- `filterMediaLibraries()` - Filter to movie/show types only
+
+#### API Routes
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| /api/plex/servers | GET | List all user's Plex servers with connection status |
+| /api/plex/libraries | GET | Fetch libraries for a specific server |
+| /api/plex/libraries | POST | Save selected server and libraries to settings |
+
+#### UI Components
+- `LibrarySelectionCard` - Server selection + library checkboxes
+- `usePlexServers` hook - State management for server/library selection
+
+### Files Created
+```
+src/lib/plex/client.ts              # Plex API client functions
+src/hooks/use-plex-servers.ts       # Server/library selection hook
+src/components/plex/library-selection-card.tsx
+src/app/api/plex/servers/route.ts
+src/app/api/plex/libraries/route.ts
+```
+
+### Files Modified
+- `src/app/setup/page.tsx` - Added Step 3 for library selection
+
+### Verification
+- ✅ Servers fetched from plex.tv API
+- ✅ Connection testing (local → remote → relay)
+- ✅ Libraries filtered to Movies and TV Shows only
+- ✅ Selection saved to SQLite settings table
+- ✅ UI matches dark theme design
+- ✅ Build passes
+
+### Checkpoint Commit
+`76c49f8`: feat(F004): Plex server and library discovery
+
+### Next Session
+Continue with F012 (Settings Persistence) or F006 (AI Configuration).
 
 ---
