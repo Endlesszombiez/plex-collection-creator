@@ -79,17 +79,19 @@ export function PlexConnectionCard() {
       <CardHeader>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-[#E5A00D]/10">
-              <PlexIcon className="h-6 w-6 text-[#E5A00D]" />
+            <div className={`p-2 rounded-lg ${isConnected ? "bg-green-500/10" : "bg-[#E5A00D]/10"}`}>
+              <PlexIcon className={`h-6 w-6 ${isConnected ? "text-green-500" : "text-[#E5A00D]"}`} />
             </div>
             <div>
               <CardTitle>Plex</CardTitle>
               <CardDescription>
-                Connect your Plex account to get started
+                {isConnected
+                  ? "Your Plex account is connected"
+                  : "Connect your Plex account to get started"}
               </CardDescription>
             </div>
           </div>
-          <Badge variant={isConnected ? "default" : "secondary"}>
+          <Badge variant={isConnected ? "default" : "secondary"} className={isConnected ? "bg-green-500" : ""}>
             {isConnected ? "Connected" : "Not Connected"}
           </Badge>
         </div>

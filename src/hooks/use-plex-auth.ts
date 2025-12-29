@@ -36,6 +36,7 @@ export function usePlexAuth(): UsePlexAuthReturn {
 
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const pollStartTimeRef = useRef<number>(0);
+  const authWindowRef = useRef<Window | null>(null);
 
   // Cleanup polling on unmount
   useEffect(() => {
@@ -104,6 +105,21 @@ export function usePlexAuth(): UsePlexAuthReturn {
           pollIntervalRef.current = null;
         }
 
+        // Close the auth popup window
+        if (authWindowRef.current && !authWindowRef.current.closed) {
+          authWindowRef.current.close();
+          authWindowRef.current = null;
+        }
+
+        // Clean up URL query params
+        if (typeof window !== "undefined") {
+          const url = new URL(window.location.href);
+          if (url.searchParams.has("plex")) {
+            url.searchParams.delete("plex");
+            window.history.replaceState({}, "", url.pathname);
+          }
+        }
+
         setState((prev) => ({
           ...prev,
           isAuthenticating: false,
@@ -120,6 +136,12 @@ export function usePlexAuth(): UsePlexAuthReturn {
         if (pollIntervalRef.current) {
           clearInterval(pollIntervalRef.current);
           pollIntervalRef.current = null;
+        }
+
+        // Close the auth popup window on timeout
+        if (authWindowRef.current && !authWindowRef.current.closed) {
+          authWindowRef.current.close();
+          authWindowRef.current = null;
         }
 
         setState((prev) => ({
@@ -165,8 +187,8 @@ export function usePlexAuth(): UsePlexAuthReturn {
         pinId: data.pinId,
       }));
 
-      // Open Plex login in new window
-      const authWindow = window.open(data.loginUrl, "_blank", "width=600,height=700");
+      // Open Plex login in new window and store reference
+      authWindowRef.current = window.open(data.loginUrl, "plex-auth", "width=600,height=700");
 
       // Start polling for auth completion
       pollStartTimeRef.current = Date.now();
@@ -178,9 +200,9 @@ export function usePlexAuth(): UsePlexAuthReturn {
         }
       }, POLL_INTERVAL);
 
-      // Also check if the popup was closed
+      // Also check if the popup was closed by user
       const popupCheckInterval = setInterval(() => {
-        if (authWindow && authWindow.closed) {
+        if (authWindowRef.current && authWindowRef.current.closed) {
           clearInterval(popupCheckInterval);
           // Don't stop polling immediately - user might have completed auth
           // The polling will timeout or succeed on its own
