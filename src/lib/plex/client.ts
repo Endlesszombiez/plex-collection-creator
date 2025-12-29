@@ -175,3 +175,151 @@ export async function getServerLibraries(
 export function filterMediaLibraries(libraries: PlexLibrary[]): PlexLibrary[] {
   return libraries.filter((lib) => lib.type === "movie" || lib.type === "show");
 }
+
+// Types for library items
+export interface PlexMediaItem {
+  ratingKey: string;
+  key: string;
+  type: "movie" | "show";
+  title: string;
+  year?: number;
+  summary?: string;
+  thumb?: string;
+  // Metadata
+  genres: string[];
+  directors: string[];
+  actors: string[];
+  studio?: string;
+  contentRating?: string;
+  rating?: number;
+  audienceRating?: number;
+  duration?: number;
+  addedAt?: number;
+  // For TV shows
+  childCount?: number; // number of seasons
+  leafCount?: number; // number of episodes
+}
+
+interface PlexApiGenre {
+  tag: string;
+}
+
+interface PlexApiDirector {
+  tag: string;
+}
+
+interface PlexApiRole {
+  tag: string;
+}
+
+interface PlexApiMediaItem {
+  ratingKey: string;
+  key: string;
+  type: string;
+  title: string;
+  year?: number;
+  summary?: string;
+  thumb?: string;
+  Genre?: PlexApiGenre[];
+  Director?: PlexApiDirector[];
+  Role?: PlexApiRole[];
+  studio?: string;
+  contentRating?: string;
+  rating?: number;
+  audienceRating?: number;
+  duration?: number;
+  addedAt?: number;
+  childCount?: number;
+  leafCount?: number;
+}
+
+/**
+ * Fetch all items from a library with metadata.
+ * Uses pagination for large libraries.
+ */
+export async function getLibraryItems(
+  serverUri: string,
+  accessToken: string,
+  libraryKey: string,
+  onProgress?: (fetched: number, total: number) => void
+): Promise<PlexMediaItem[]> {
+  const PAGE_SIZE = 100;
+  const items: PlexMediaItem[] = [];
+  let offset = 0;
+  let totalSize = 0;
+
+  // First request to get total count
+  const initialResponse = await fetch(
+    `${serverUri}/library/sections/${libraryKey}/all?X-Plex-Container-Start=0&X-Plex-Container-Size=${PAGE_SIZE}`,
+    {
+      headers: {
+        Accept: "application/json",
+        "X-Plex-Token": accessToken,
+      },
+    }
+  );
+
+  if (!initialResponse.ok) {
+    throw new Error(`Failed to fetch library items: ${initialResponse.statusText}`);
+  }
+
+  const initialData = await initialResponse.json();
+  totalSize = initialData.MediaContainer?.totalSize || 0;
+  const initialItems = initialData.MediaContainer?.Metadata || [];
+
+  items.push(...initialItems.map(parseMediaItem));
+  onProgress?.(items.length, totalSize);
+
+  // Fetch remaining pages
+  offset = PAGE_SIZE;
+  while (offset < totalSize) {
+    const response = await fetch(
+      `${serverUri}/library/sections/${libraryKey}/all?X-Plex-Container-Start=${offset}&X-Plex-Container-Size=${PAGE_SIZE}`,
+      {
+        headers: {
+          Accept: "application/json",
+          "X-Plex-Token": accessToken,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch library items at offset ${offset}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    const pageItems = data.MediaContainer?.Metadata || [];
+    items.push(...pageItems.map(parseMediaItem));
+
+    onProgress?.(items.length, totalSize);
+    offset += PAGE_SIZE;
+  }
+
+  return items;
+}
+
+/**
+ * Parse a Plex API media item into our format.
+ */
+function parseMediaItem(item: PlexApiMediaItem): PlexMediaItem {
+  return {
+    ratingKey: item.ratingKey,
+    key: item.key,
+    type: item.type as "movie" | "show",
+    title: item.title,
+    year: item.year,
+    summary: item.summary,
+    thumb: item.thumb,
+    genres: item.Genre?.map((g) => g.tag) || [],
+    directors: item.Director?.map((d) => d.tag) || [],
+    actors: item.Role?.map((r) => r.tag).slice(0, 10) || [], // Limit to top 10 actors
+    studio: item.studio,
+    contentRating: item.contentRating,
+    rating: item.rating,
+    audienceRating: item.audienceRating,
+    duration: item.duration,
+    addedAt: item.addedAt,
+    childCount: item.childCount,
+    leafCount: item.leafCount,
+  };
+}

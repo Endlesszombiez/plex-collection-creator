@@ -2,7 +2,11 @@
   "_warning": "Feature definitions are IMMUTABLE. Only 'passes' and 'status' fields may be modified. IT IS CATASTROPHIC TO REMOVE OR EDIT FEATURE DEFINITIONS.",
   "_planApproved": false,
   "_planApprovedAt": null,
-  "_modifiableFields": ["passes", "status", "subtasks[].status"],
+  "_modifiableFields": [
+    "passes",
+    "status",
+    "subtasks[].status"
+  ],
   "project": "Plex Collection Creator",
   "created": "2025-12-28T00:00:00.000Z",
   "lastUpdated": "2025-12-28T00:00:00.000Z",
@@ -16,7 +20,9 @@
       "status": "verified",
       "passes": true,
       "implementationOrder": 2,
-      "dependencies": ["F002"],
+      "dependencies": [
+        "F002"
+      ],
       "estimatedHours": 4,
       "planReference": "EPCC_PLAN.md#phase-1-foundation",
       "acceptanceCriteria": [
@@ -26,8 +32,18 @@
         "Environment variables configure API keys and settings"
       ],
       "subtasks": [
-        {"id": "F001.1", "name": "Create Dockerfile with multi-stage build", "status": "completed", "estimatedHours": 2},
-        {"id": "F001.2", "name": "Create docker-compose.yml with volume and env config", "status": "completed", "estimatedHours": 2}
+        {
+          "id": "F001.1",
+          "name": "Create Dockerfile with multi-stage build",
+          "status": "completed",
+          "estimatedHours": 2
+        },
+        {
+          "id": "F001.2",
+          "name": "Create docker-compose.yml with volume and env config",
+          "status": "completed",
+          "estimatedHours": 2
+        }
       ],
       "verifiedAt": "2025-12-28T22:45:00.000Z",
       "source": "PRD.md#must-have-p0"
@@ -50,8 +66,18 @@
         "SQLite database initializes on first run"
       ],
       "subtasks": [
-        {"id": "F002.1", "name": "Create Next.js 14 app with TypeScript, Tailwind, shadcn/ui", "status": "completed", "estimatedHours": 2},
-        {"id": "F002.2", "name": "Configure Drizzle ORM with SQLite, create schema, migrations", "status": "completed", "estimatedHours": 2}
+        {
+          "id": "F002.1",
+          "name": "Create Next.js 14 app with TypeScript, Tailwind, shadcn/ui",
+          "status": "completed",
+          "estimatedHours": 2
+        },
+        {
+          "id": "F002.2",
+          "name": "Configure Drizzle ORM with SQLite, create schema, migrations",
+          "status": "completed",
+          "estimatedHours": 2
+        }
       ],
       "verifiedAt": "2025-12-28T22:35:00.000Z",
       "source": "PRD.md#must-have-p0"
@@ -64,7 +90,9 @@
       "status": "verified",
       "passes": true,
       "implementationOrder": 3,
-      "dependencies": ["F002"],
+      "dependencies": [
+        "F002"
+      ],
       "estimatedHours": 4.5,
       "planReference": "EPCC_PLAN.md#phase-2-plex-integration",
       "acceptanceCriteria": [
@@ -75,8 +103,18 @@
         "User can disconnect/reconnect Plex account"
       ],
       "subtasks": [
-        {"id": "F003.1", "name": "Implement OAuth PIN flow with plex-oauth", "status": "completed", "estimatedHours": 3},
-        {"id": "F003.2", "name": "Encrypt and store auth token in SQLite", "status": "completed", "estimatedHours": 1.5}
+        {
+          "id": "F003.1",
+          "name": "Implement OAuth PIN flow with plex-oauth",
+          "status": "completed",
+          "estimatedHours": 3
+        },
+        {
+          "id": "F003.2",
+          "name": "Encrypt and store auth token in SQLite",
+          "status": "completed",
+          "estimatedHours": 1.5
+        }
       ],
       "verifiedAt": "2025-12-28T23:15:00.000Z",
       "source": "PRD.md#must-have-p0"
@@ -89,7 +127,9 @@
       "status": "verified",
       "passes": true,
       "implementationOrder": 4,
-      "dependencies": ["F003"],
+      "dependencies": [
+        "F003"
+      ],
       "estimatedHours": 4,
       "planReference": "EPCC_PLAN.md#phase-2-plex-integration",
       "acceptanceCriteria": [
@@ -99,8 +139,18 @@
         "User can select which libraries to scan"
       ],
       "subtasks": [
-        {"id": "F004.1", "name": "Fetch user's Plex servers via plex.tv API", "status": "completed", "estimatedHours": 2},
-        {"id": "F004.2", "name": "Fetch libraries and filter Movies/TV Shows", "status": "completed", "estimatedHours": 2}
+        {
+          "id": "F004.1",
+          "name": "Fetch user's Plex servers via plex.tv API",
+          "status": "completed",
+          "estimatedHours": 2
+        },
+        {
+          "id": "F004.2",
+          "name": "Fetch libraries and filter Movies/TV Shows",
+          "status": "completed",
+          "estimatedHours": 2
+        }
       ],
       "verifiedAt": "2025-12-29T00:00:00.000Z",
       "source": "PRD.md#must-have-p0"
@@ -110,10 +160,13 @@
       "name": "Library Metadata Scanning",
       "description": "Fetch all items from selected libraries with relevant metadata",
       "priority": "P0",
-      "status": "pending",
-      "passes": false,
+      "status": "verified",
+      "passes": true,
       "implementationOrder": 7,
-      "dependencies": ["F004", "F006"],
+      "dependencies": [
+        "F004",
+        "F006"
+      ],
       "estimatedHours": 5,
       "planReference": "EPCC_PLAN.md#phase-4-library-scanning",
       "acceptanceCriteria": [
@@ -124,20 +177,33 @@
         "Display scan progress to user"
       ],
       "subtasks": [
-        {"id": "F005.1", "name": "Implement paginated metadata fetching", "status": "pending", "estimatedHours": 3},
-        {"id": "F005.2", "name": "Add real-time progress tracking via SSE", "status": "pending", "estimatedHours": 2}
+        {
+          "id": "F005.1",
+          "name": "Implement paginated metadata fetching",
+          "status": "completed",
+          "estimatedHours": 3
+        },
+        {
+          "id": "F005.2",
+          "name": "Add real-time progress tracking via SSE",
+          "status": "completed",
+          "estimatedHours": 2
+        }
       ],
-      "source": "PRD.md#must-have-p0"
+      "source": "PRD.md#must-have-p0",
+      "verifiedAt": "2025-12-29T01:00:00.000Z"
     },
     {
       "id": "F006",
       "name": "Multi-Provider AI Configuration",
       "description": "Support multiple AI providers with user-provided credentials",
       "priority": "P0",
-      "status": "pending",
-      "passes": false,
+      "status": "verified",
+      "passes": true,
       "implementationOrder": 6,
-      "dependencies": ["F012"],
+      "dependencies": [
+        "F012"
+      ],
       "estimatedHours": 9,
       "planReference": "EPCC_PLAN.md#phase-3-ai-integration",
       "acceptanceCriteria": [
@@ -148,12 +214,33 @@
         "Test connection validates credentials work"
       ],
       "subtasks": [
-        {"id": "F006.1", "name": "Create provider selection UI with credential inputs", "status": "pending", "estimatedHours": 2},
-        {"id": "F006.2", "name": "Implement AES-256-GCM credential encryption", "status": "pending", "estimatedHours": 2},
-        {"id": "F006.3", "name": "Configure AI SDK multi-provider setup", "status": "pending", "estimatedHours": 3},
-        {"id": "F006.4", "name": "Create connection test endpoint", "status": "pending", "estimatedHours": 1.5}
+        {
+          "id": "F006.1",
+          "name": "Create provider selection UI with credential inputs",
+          "status": "pending",
+          "estimatedHours": 2
+        },
+        {
+          "id": "F006.2",
+          "name": "Implement AES-256-GCM credential encryption",
+          "status": "pending",
+          "estimatedHours": 2
+        },
+        {
+          "id": "F006.3",
+          "name": "Configure AI SDK multi-provider setup",
+          "status": "pending",
+          "estimatedHours": 3
+        },
+        {
+          "id": "F006.4",
+          "name": "Create connection test endpoint",
+          "status": "pending",
+          "estimatedHours": 1.5
+        }
       ],
-      "source": "PRD.md#must-have-p0"
+      "source": "PRD.md#must-have-p0",
+      "verifiedAt": "2025-12-29T00:00:00.000Z"
     },
     {
       "id": "F007",
@@ -163,7 +250,10 @@
       "status": "pending",
       "passes": false,
       "implementationOrder": 8,
-      "dependencies": ["F005", "F006"],
+      "dependencies": [
+        "F005",
+        "F006"
+      ],
       "estimatedHours": 6.5,
       "planReference": "EPCC_PLAN.md#phase-4-library-scanning",
       "acceptanceCriteria": [
@@ -174,9 +264,24 @@
         "Each suggestion includes reasoning explanation"
       ],
       "subtasks": [
-        {"id": "F007.1", "name": "Design prompts for franchise/collection detection", "status": "pending", "estimatedHours": 1.5},
-        {"id": "F007.2", "name": "Implement AI analysis pipeline with batch processing", "status": "pending", "estimatedHours": 3},
-        {"id": "F007.3", "name": "Store suggestions with items and reasoning", "status": "pending", "estimatedHours": 2}
+        {
+          "id": "F007.1",
+          "name": "Design prompts for franchise/collection detection",
+          "status": "pending",
+          "estimatedHours": 1.5
+        },
+        {
+          "id": "F007.2",
+          "name": "Implement AI analysis pipeline with batch processing",
+          "status": "pending",
+          "estimatedHours": 3
+        },
+        {
+          "id": "F007.3",
+          "name": "Store suggestions with items and reasoning",
+          "status": "pending",
+          "estimatedHours": 2
+        }
       ],
       "source": "PRD.md#must-have-p0"
     },
@@ -188,7 +293,9 @@
       "status": "pending",
       "passes": false,
       "implementationOrder": 9,
-      "dependencies": ["F007"],
+      "dependencies": [
+        "F007"
+      ],
       "estimatedHours": 2,
       "planReference": "EPCC_PLAN.md#phase-5-review-apply",
       "acceptanceCriteria": [
@@ -198,7 +305,12 @@
         "Visual indication of suggestion quality/confidence"
       ],
       "subtasks": [
-        {"id": "F008.1", "name": "Create suggestion list UI with items and reasoning", "status": "pending", "estimatedHours": 2}
+        {
+          "id": "F008.1",
+          "name": "Create suggestion list UI with items and reasoning",
+          "status": "pending",
+          "estimatedHours": 2
+        }
       ],
       "source": "PRD.md#must-have-p0"
     },
@@ -210,7 +322,9 @@
       "status": "pending",
       "passes": false,
       "implementationOrder": 10,
-      "dependencies": ["F008"],
+      "dependencies": [
+        "F008"
+      ],
       "estimatedHours": 4,
       "planReference": "EPCC_PLAN.md#phase-5-review-apply",
       "acceptanceCriteria": [
@@ -221,8 +335,18 @@
         "Bulk approve/reject actions"
       ],
       "subtasks": [
-        {"id": "F009.1", "name": "Implement approve/reject actions with bulk support", "status": "pending", "estimatedHours": 2},
-        {"id": "F009.2", "name": "Add edit functionality for name and items", "status": "pending", "estimatedHours": 2}
+        {
+          "id": "F009.1",
+          "name": "Implement approve/reject actions with bulk support",
+          "status": "pending",
+          "estimatedHours": 2
+        },
+        {
+          "id": "F009.2",
+          "name": "Add edit functionality for name and items",
+          "status": "pending",
+          "estimatedHours": 2
+        }
       ],
       "source": "PRD.md#must-have-p0"
     },
@@ -234,7 +358,10 @@
       "status": "pending",
       "passes": false,
       "implementationOrder": 11,
-      "dependencies": ["F009", "F004"],
+      "dependencies": [
+        "F009",
+        "F004"
+      ],
       "estimatedHours": 2,
       "planReference": "EPCC_PLAN.md#phase-5-review-apply",
       "acceptanceCriteria": [
@@ -245,7 +372,12 @@
         "Avoid duplicate collection creation"
       ],
       "subtasks": [
-        {"id": "F010.1", "name": "Create collections via Plex API with error handling", "status": "pending", "estimatedHours": 2}
+        {
+          "id": "F010.1",
+          "name": "Create collections via Plex API with error handling",
+          "status": "pending",
+          "estimatedHours": 2
+        }
       ],
       "source": "PRD.md#must-have-p0"
     },
@@ -257,7 +389,9 @@
       "status": "pending",
       "passes": false,
       "implementationOrder": 12,
-      "dependencies": ["F007"],
+      "dependencies": [
+        "F007"
+      ],
       "estimatedHours": 4,
       "planReference": "EPCC_PLAN.md#phase-6-custom-prompts",
       "acceptanceCriteria": [
@@ -267,8 +401,18 @@
         "Examples provided to guide users"
       ],
       "subtasks": [
-        {"id": "F011.1", "name": "Create custom prompt UI with examples", "status": "pending", "estimatedHours": 1.5},
-        {"id": "F011.2", "name": "Implement custom analysis endpoint", "status": "pending", "estimatedHours": 2.5}
+        {
+          "id": "F011.1",
+          "name": "Create custom prompt UI with examples",
+          "status": "pending",
+          "estimatedHours": 1.5
+        },
+        {
+          "id": "F011.2",
+          "name": "Implement custom analysis endpoint",
+          "status": "pending",
+          "estimatedHours": 2.5
+        }
       ],
       "source": "PRD.md#must-have-p0"
     },
@@ -277,10 +421,12 @@
       "name": "Settings Persistence",
       "description": "Store user settings in SQLite database",
       "priority": "P0",
-      "status": "pending",
-      "passes": false,
+      "status": "verified",
+      "passes": true,
       "implementationOrder": 5,
-      "dependencies": ["F004"],
+      "dependencies": [
+        "F004"
+      ],
       "estimatedHours": 1.5,
       "planReference": "EPCC_PLAN.md#phase-2-plex-integration",
       "acceptanceCriteria": [
@@ -290,9 +436,15 @@
         "Settings UI to view/edit configuration"
       ],
       "subtasks": [
-        {"id": "F012.1", "name": "Implement settings save/load with UI", "status": "pending", "estimatedHours": 1.5}
+        {
+          "id": "F012.1",
+          "name": "Implement settings save/load with UI",
+          "status": "completed",
+          "estimatedHours": 1.5
+        }
       ],
-      "source": "PRD.md#must-have-p0"
+      "source": "PRD.md#must-have-p0",
+      "verifiedAt": "2025-12-29T00:00:00.000Z"
     },
     {
       "id": "F013",
@@ -302,7 +454,9 @@
       "status": "pending",
       "passes": false,
       "implementationOrder": 13,
-      "dependencies": ["F007"],
+      "dependencies": [
+        "F007"
+      ],
       "estimatedHours": 6,
       "planReference": "EPCC_PLAN.md#out-of-scope-mvp",
       "acceptanceCriteria": [
@@ -322,7 +476,9 @@
       "status": "pending",
       "passes": false,
       "implementationOrder": 14,
-      "dependencies": ["F010"],
+      "dependencies": [
+        "F010"
+      ],
       "estimatedHours": 6,
       "planReference": "EPCC_PLAN.md#out-of-scope-mvp",
       "acceptanceCriteria": [
@@ -343,7 +499,9 @@
       "status": "pending",
       "passes": false,
       "implementationOrder": 15,
-      "dependencies": ["F007"],
+      "dependencies": [
+        "F007"
+      ],
       "estimatedHours": 4,
       "planReference": "EPCC_PLAN.md#out-of-scope-mvp",
       "acceptanceCriteria": [
