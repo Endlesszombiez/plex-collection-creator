@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ScanProgressCard } from "@/components/scan/scan-progress-card";
+import { AIAnalysisCard } from "@/components/ai/ai-analysis-card";
 import { useSavedLibraries } from "@/hooks/use-saved-libraries";
 import { useAIConfig } from "@/hooks/use-ai-config";
 import { Settings, Sparkles, Library } from "lucide-react";
@@ -138,39 +139,32 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Scan card */}
-          <div className="mb-8">
-            <h2 className="text-lg font-semibold text-white mb-4">Library Scan</h2>
-            <ScanProgressCard onScanComplete={handleScanComplete} />
-          </div>
-
-          {/* Next steps after scan */}
-          {scanComplete && scanResults && (
-            <div className="rounded-xl border border-[#E5A00D]/30 bg-[#E5A00D]/5 p-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="flex items-start gap-4">
-                <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-[#E5A00D]/20">
-                  <Sparkles className="h-6 w-6 text-[#E5A00D]" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-semibold text-white mb-1">Ready for AI Analysis</h3>
-                  <p className="text-sm text-white/60 mb-4">
-                    Your scan found {scanResults.movies} movies and {scanResults.shows} TV shows.
-                    Continue to have AI analyze your library and suggest collections.
-                  </p>
-                  <button
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#E5A00D] text-black font-medium text-sm hover:bg-[#E5A00D]/90 transition-colors"
-                    onClick={() => {
-                      // TODO: Navigate to AI analysis page
-                      console.log("Navigate to AI analysis with scanId:", scanResults.scanId);
-                    }}
-                  >
-                    <Sparkles className="h-4 w-4" />
-                    Generate Collection Suggestions
-                  </button>
-                </div>
-              </div>
+          {/* Workflow Steps */}
+          <div className="space-y-6">
+            {/* Step 1: Scan */}
+            <div>
+              <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-white/10 text-xs font-bold text-white/60">1</span>
+                Library Scan
+              </h2>
+              <ScanProgressCard onScanComplete={handleScanComplete} />
             </div>
-          )}
+
+            {/* Step 2: AI Analysis - shown after scan complete */}
+            {scanComplete && scanResults && (
+              <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                  <span className="flex items-center justify-center w-6 h-6 rounded-full bg-[#E5A00D]/20 text-xs font-bold text-[#E5A00D]">2</span>
+                  AI Analysis
+                </h2>
+                <AIAnalysisCard
+                  scanId={scanResults.scanId}
+                  movieCount={scanResults.movies}
+                  showCount={scanResults.shows}
+                />
+              </div>
+            )}
+          </div>
         </div>
       </main>
     </div>
