@@ -2,72 +2,80 @@
 
 import { PlexConnectionCard } from "@/components/plex/plex-connection-card";
 import { LibrarySelectionCard } from "@/components/plex/library-selection-card";
+import { AIConfigCard } from "@/components/ai/ai-config-card";
 import { usePlexAuth } from "@/hooks/use-plex-auth";
-import { useState } from "react";
+import { useAIConfig } from "@/hooks/use-ai-config";
+import { useSavedLibraries } from "@/hooks/use-saved-libraries";
+import { useState, useEffect } from "react";
 
-function StepIndicator({
+function StepCircle({
   step,
-  title,
   isActive,
   isComplete
 }: {
   step: number;
+  isActive: boolean;
+  isComplete: boolean;
+}) {
+  return (
+    <div
+      className={`
+        relative flex items-center justify-center w-10 h-10 rounded-full
+        font-semibold text-sm transition-all duration-500 shrink-0
+        ${isComplete
+          ? "bg-[#E5A00D] text-black"
+          : isActive
+            ? "bg-[#E5A00D]/20 text-[#E5A00D] ring-2 ring-[#E5A00D]/50"
+            : "bg-white/5 text-white/40"
+        }
+      `}
+    >
+      {isComplete ? (
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+        </svg>
+      ) : (
+        step
+      )}
+      {isActive && !isComplete && (
+        <span className="absolute inset-0 rounded-full animate-ping bg-[#E5A00D]/20" />
+      )}
+    </div>
+  );
+}
+
+function StepLabel({
+  title,
+  isActive,
+  isComplete
+}: {
   title: string;
   isActive: boolean;
   isComplete: boolean;
 }) {
   return (
-    <div className="flex items-center gap-3">
-      <div
-        className={`
-          relative flex items-center justify-center w-10 h-10 rounded-full
-          font-semibold text-sm transition-all duration-500
-          ${isComplete
-            ? "bg-[#E5A00D] text-black"
-            : isActive
-              ? "bg-[#E5A00D]/20 text-[#E5A00D] ring-2 ring-[#E5A00D]/50"
-              : "bg-white/5 text-white/40"
-          }
-        `}
-      >
-        {isComplete ? (
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-          </svg>
-        ) : (
-          step
-        )}
-        {isActive && !isComplete && (
-          <span className="absolute inset-0 rounded-full animate-ping bg-[#E5A00D]/20" />
-        )}
-      </div>
-      <span className={`
-        text-sm font-medium transition-colors duration-300
-        ${isComplete ? "text-[#E5A00D]" : isActive ? "text-white" : "text-white/40"}
-      `}>
-        {title}
-      </span>
-    </div>
-  );
-}
-
-function StepConnector({ isComplete }: { isComplete: boolean }) {
-  return (
-    <div className="w-10 flex justify-center py-1">
-      <div
-        className={`
-          w-0.5 h-8 rounded-full transition-colors duration-500
-          ${isComplete ? "bg-[#E5A00D]" : "bg-white/10"}
-        `}
-      />
-    </div>
+    <span className={`
+      text-sm font-medium transition-colors duration-300 whitespace-nowrap
+      ${isComplete ? "text-[#E5A00D]" : isActive ? "text-white" : "text-white/40"}
+    `}>
+      {title}
+    </span>
   );
 }
 
 export default function SetupPage() {
   const { status, isLoading } = usePlexAuth();
+  const { configured: aiConfigured } = useAIConfig();
+  const { hasSavedSelection } = useSavedLibraries();
   const isPlexConnected = status?.connected ?? false;
   const [librariesSelected, setLibrariesSelected] = useState(false);
+
+  // Sync librariesSelected with saved state
+  useEffect(() => {
+    if (hasSavedSelection) {
+      setLibrariesSelected(true);
+    }
+  }, [hasSavedSelection]);
 
   return (
     <div className="min-h-screen bg-[#1a1a1a] relative overflow-hidden">
@@ -101,105 +109,120 @@ export default function SetupPage() {
             </p>
           </div>
 
-          {/* Main content grid */}
-          <div className="grid md:grid-cols-[200px_1fr] gap-12 md:gap-16">
-            {/* Progress sidebar */}
-            <div className="hidden md:block animate-in fade-in slide-in-from-left-4 duration-700 delay-150">
-              <div className="sticky top-8">
-                <StepIndicator
-                  step={1}
-                  title="Connect Plex"
-                  isActive={!isPlexConnected}
-                  isComplete={isPlexConnected}
-                />
-                <StepConnector isComplete={isPlexConnected} />
-                <StepIndicator
-                  step={2}
-                  title="Configure AI"
-                  isActive={isPlexConnected}
-                  isComplete={false}
-                />
-                <StepConnector isComplete={false} />
-                <StepIndicator
-                  step={3}
-                  title="Select Libraries"
-                  isActive={isPlexConnected && !librariesSelected}
-                  isComplete={librariesSelected}
+          {/* Steps - clean aligned layout */}
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-150">
+            {/* Desktop layout */}
+            <div className="hidden md:block space-y-6">
+              {/* Step 1: Plex Connection */}
+              <div className="grid grid-cols-[180px_1fr] gap-6">
+                {/* Left: Step indicator with connector */}
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-3">
+                    <StepCircle step={1} isActive={!isPlexConnected} isComplete={isPlexConnected} />
+                    <StepLabel title="Connect Plex" isActive={!isPlexConnected} isComplete={isPlexConnected} />
+                  </div>
+                  {/* Connector line */}
+                  <div className="flex justify-start pl-[19px] flex-1 py-3">
+                    <div
+                      className="w-0.5 h-full rounded-full transition-colors duration-500"
+                      style={{ backgroundColor: isPlexConnected ? '#E5A00D' : 'rgba(255,255,255,0.1)' }}
+                    />
+                  </div>
+                </div>
+                {/* Right: Card */}
+                <PlexConnectionCard />
+              </div>
+
+              {/* Step 2: Library Selection */}
+              <div className={`grid grid-cols-[180px_1fr] gap-6 transition-opacity duration-500 ${isPlexConnected ? "opacity-100" : "opacity-40"}`}>
+                {/* Left: Step indicator with connector */}
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-3">
+                    <StepCircle step={2} isActive={isPlexConnected && !librariesSelected} isComplete={librariesSelected} />
+                    <StepLabel title="Select Libraries" isActive={isPlexConnected && !librariesSelected} isComplete={librariesSelected} />
+                  </div>
+                  {/* Connector line */}
+                  <div className="flex justify-start pl-[19px] flex-1 py-3">
+                    <div
+                      className="w-0.5 h-full rounded-full transition-colors duration-500"
+                      style={{ backgroundColor: librariesSelected ? '#E5A00D' : 'rgba(255,255,255,0.1)' }}
+                    />
+                  </div>
+                </div>
+                {/* Right: Card */}
+                <LibrarySelectionCard
+                  isPlexConnected={isPlexConnected}
+                  onComplete={() => setLibrariesSelected(true)}
                 />
               </div>
-            </div>
 
-            {/* Steps content */}
-            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300">
-              {/* Step 1: Plex Connection */}
-              <section>
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="md:hidden flex items-center justify-center w-8 h-8 rounded-full bg-[#E5A00D]/20 text-[#E5A00D] text-sm font-semibold">
-                    {isPlexConnected ? (
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                      </svg>
-                    ) : "1"}
+              {/* Step 3: AI Configuration */}
+              <div className={`grid grid-cols-[180px_1fr] gap-6 transition-opacity duration-500 ${isPlexConnected ? "opacity-100" : "opacity-40"}`}>
+                {/* Left: Step indicator (no connector after last step) */}
+                <div className="flex items-start">
+                  <div className="flex items-center gap-3">
+                    <StepCircle step={3} isActive={isPlexConnected && !aiConfigured} isComplete={aiConfigured} />
+                    <StepLabel title="Configure AI" isActive={isPlexConnected && !aiConfigured} isComplete={aiConfigured} />
                   </div>
-                  <h2 className="text-xl font-semibold text-white">Connect your Plex account</h2>
                 </div>
-                <p className="text-white/50 mb-6 text-sm md:pl-11">
-                  Sign in with Plex to allow access to your media libraries
-                </p>
-                <div className="md:pl-11">
-                  <PlexConnectionCard />
-                </div>
-              </section>
-
-              {/* Step 2: AI Configuration (Coming Soon) */}
-              <section className={`transition-opacity duration-500 ${isPlexConnected ? "opacity-100" : "opacity-40"}`}>
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="md:hidden flex items-center justify-center w-8 h-8 rounded-full bg-white/5 text-white/40 text-sm font-semibold">
-                    2
-                  </div>
-                  <h2 className="text-xl font-semibold text-white">Configure AI provider</h2>
-                </div>
-                <p className="text-white/50 mb-6 text-sm md:pl-11">
-                  Choose your AI provider and add your API credentials
-                </p>
-                <div className="md:pl-11">
+                {/* Right: Card */}
+                {isPlexConnected ? (
+                  <AIConfigCard />
+                ) : (
                   <div className="rounded-xl border border-white/10 bg-white/[0.02] p-8 text-center">
                     <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-4">
                       <svg className="w-6 h-6 text-white/30" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" />
                       </svg>
                     </div>
-                    <p className="text-white/40 text-sm">
-                      {isPlexConnected
-                        ? "AI configuration coming in the next update"
-                        : "Complete step 1 to continue"}
-                    </p>
+                    <p className="text-white/40 text-sm">Complete step 1 to continue</p>
                   </div>
-                </div>
-              </section>
+                )}
+              </div>
+            </div>
 
-              {/* Step 3: Library Selection */}
-              <section className={`transition-opacity duration-500 ${isPlexConnected ? "opacity-100" : "opacity-40"}`}>
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="md:hidden flex items-center justify-center w-8 h-8 rounded-full bg-white/5 text-white/40 text-sm font-semibold">
-                    {librariesSelected ? (
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            {/* Mobile layout */}
+            <div className="md:hidden space-y-6">
+              {/* Step 1 */}
+              <div>
+                <div className="flex items-center gap-3 mb-3">
+                  <StepCircle step={1} isActive={!isPlexConnected} isComplete={isPlexConnected} />
+                  <StepLabel title="Connect Plex" isActive={!isPlexConnected} isComplete={isPlexConnected} />
+                </div>
+                <PlexConnectionCard />
+              </div>
+
+              {/* Step 2 */}
+              <div className={`transition-opacity duration-500 ${isPlexConnected ? "opacity-100" : "opacity-40"}`}>
+                <div className="flex items-center gap-3 mb-3">
+                  <StepCircle step={2} isActive={isPlexConnected && !librariesSelected} isComplete={librariesSelected} />
+                  <StepLabel title="Select Libraries" isActive={isPlexConnected && !librariesSelected} isComplete={librariesSelected} />
+                </div>
+                <LibrarySelectionCard
+                  isPlexConnected={isPlexConnected}
+                  onComplete={() => setLibrariesSelected(true)}
+                />
+              </div>
+
+              {/* Step 3 */}
+              <div className={`transition-opacity duration-500 ${isPlexConnected ? "opacity-100" : "opacity-40"}`}>
+                <div className="flex items-center gap-3 mb-3">
+                  <StepCircle step={3} isActive={isPlexConnected && !aiConfigured} isComplete={aiConfigured} />
+                  <StepLabel title="Configure AI" isActive={isPlexConnected && !aiConfigured} isComplete={aiConfigured} />
+                </div>
+                {isPlexConnected ? (
+                  <AIConfigCard />
+                ) : (
+                  <div className="rounded-xl border border-white/10 bg-white/[0.02] p-8 text-center">
+                    <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-4">
+                      <svg className="w-6 h-6 text-white/30" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" />
                       </svg>
-                    ) : "3"}
+                    </div>
+                    <p className="text-white/40 text-sm">Complete step 1 to continue</p>
                   </div>
-                  <h2 className="text-xl font-semibold text-white">Select libraries to scan</h2>
-                </div>
-                <p className="text-white/50 mb-6 text-sm md:pl-11">
-                  Choose which Plex libraries to analyze for collection suggestions
-                </p>
-                <div className="md:pl-11">
-                  <LibrarySelectionCard
-                    isPlexConnected={isPlexConnected}
-                    onComplete={() => setLibrariesSelected(true)}
-                  />
-                </div>
-              </section>
+                )}
+              </div>
             </div>
           </div>
         </div>

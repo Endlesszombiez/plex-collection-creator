@@ -165,6 +165,7 @@ export function usePlexServers(): UsePlexServersReturn {
         body: JSON.stringify({
           serverUri: selectedServer.uri,
           serverId: selectedServer.clientIdentifier,
+          serverName: selectedServer.name,
           libraries: selectedLibraryDetails,
         }),
       });

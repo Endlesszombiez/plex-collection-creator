@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { serverUri, serverId, libraries } = body;
+    const { serverUri, serverId, serverName, libraries } = body;
 
     if (!serverUri || !serverId) {
       return NextResponse.json(
@@ -99,6 +99,7 @@ export async function POST(request: NextRequest) {
         .set({
           plexServerUrl: serverUri,
           plexServerId: serverId,
+          plexServerName: serverName || null,
           selectedLibraries: libraries ? JSON.stringify(libraries) : null,
           updatedAt: new Date(),
         })
@@ -107,6 +108,7 @@ export async function POST(request: NextRequest) {
       await db.insert(settings).values({
         plexServerUrl: serverUri,
         plexServerId: serverId,
+        plexServerName: serverName || null,
         selectedLibraries: libraries ? JSON.stringify(libraries) : null,
       });
     }

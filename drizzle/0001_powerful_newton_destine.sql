@@ -1,0 +1,1 @@
+ALTER TABLE `settings` ADD `plex_server_name` text;

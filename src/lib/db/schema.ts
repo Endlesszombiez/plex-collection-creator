@@ -7,6 +7,7 @@ export const settings = sqliteTable("settings", {
   plexToken: text("plex_token"), // Encrypted
   plexServerUrl: text("plex_server_url"),
   plexServerId: text("plex_server_id"),
+  plexServerName: text("plex_server_name"),
   // AI provider configuration
   aiProvider: text("ai_provider"), // anthropic | bedrock | vertex | openai
   aiCredentials: text("ai_credentials"), // Encrypted JSON

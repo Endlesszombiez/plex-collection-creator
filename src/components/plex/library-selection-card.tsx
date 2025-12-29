@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { usePlexServers } from "@/hooks/use-plex-servers";
+import { useSavedLibraries } from "@/hooks/use-saved-libraries";
 
 function LoadingSpinner({ className = "h-4 w-4" }: { className?: string }) {
   return (
@@ -81,17 +82,29 @@ export function LibrarySelectionCard({ isPlexConnected, onComplete }: LibrarySel
     saveSelection,
   } = usePlexServers();
 
-  // Fetch servers when Plex is connected
+  const {
+    hasSavedSelection,
+    serverName: savedServerName,
+    libraries: savedLibraries,
+    isLoading: isLoadingSaved,
+    refresh: refreshSaved,
+  } = useSavedLibraries();
+
+  const [showForm, setShowForm] = useState(false);
+
+  // Fetch servers when Plex is connected and we're showing the form
   useEffect(() => {
-    if (isPlexConnected && servers.length === 0 && !isLoadingServers) {
+    if (isPlexConnected && servers.length === 0 && !isLoadingServers && (showForm || !hasSavedSelection)) {
       fetchServers();
     }
-  }, [isPlexConnected, servers.length, isLoadingServers, fetchServers]);
+  }, [isPlexConnected, servers.length, isLoadingServers, fetchServers, showForm, hasSavedSelection]);
 
   const handleSave = async () => {
     const success = await saveSelection();
-    if (success && onComplete) {
-      onComplete();
+    if (success) {
+      setShowForm(false);
+      refreshSaved();
+      onComplete?.();
     }
   };
 
@@ -105,6 +118,75 @@ export function LibrarySelectionCard({ isPlexConnected, onComplete }: LibrarySel
         <p className="text-white/40 text-sm">
           Connect to Plex first to select your libraries
         </p>
+      </div>
+    );
+  }
+
+  // Loading saved state
+  if (isLoadingSaved) {
+    return (
+      <div className="rounded-xl border border-white/10 bg-white/[0.02] p-6">
+        <div className="flex items-center justify-center gap-3 py-8">
+          <LoadingSpinner className="h-5 w-5 text-[#E5A00D]" />
+          <span className="text-white/60">Loading saved libraries...</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Saved state (not editing)
+  if (hasSavedSelection && !showForm) {
+    const movieLibraries = savedLibraries.filter(lib => lib.type === "movie");
+    const showLibraries = savedLibraries.filter(lib => lib.type === "show");
+
+    return (
+      <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 overflow-hidden">
+        <div className="p-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="relative flex items-center justify-center w-12 h-12 rounded-xl bg-emerald-500/20">
+                <ServerIcon className="h-6 w-6 text-emerald-400" />
+                <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center ring-2 ring-[#1a1a1a]">
+                  <CheckIcon className="w-3 h-3 text-white" />
+                </div>
+              </div>
+              <div>
+                <h3 className="font-semibold text-white mb-0.5">Libraries Selected</h3>
+                <p className="text-sm text-white/50">
+                  {savedLibraries.length} {savedLibraries.length === 1 ? "library" : "libraries"} from {savedServerName || "server"}
+                </p>
+              </div>
+            </div>
+            <div className="px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/20 text-emerald-400">
+              Configured
+            </div>
+          </div>
+
+          {/* Show selected libraries */}
+          <div className="mt-4 flex flex-wrap gap-2">
+            {movieLibraries.map(lib => (
+              <div key={lib.key} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 text-sm">
+                <MovieIcon className="w-4 h-4 text-[#E5A00D]" />
+                <span className="text-white/80">{lib.title}</span>
+              </div>
+            ))}
+            {showLibraries.map(lib => (
+              <div key={lib.key} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 text-sm">
+                <TvIcon className="w-4 h-4 text-[#E5A00D]" />
+                <span className="text-white/80">{lib.title}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="px-6 py-4 border-t border-white/5 flex justify-end">
+          <button
+            onClick={() => setShowForm(true)}
+            className="px-4 py-2 rounded-lg text-sm font-medium bg-white/5 hover:bg-white/10 text-white/60 hover:text-white transition-all"
+          >
+            Change Selection
+          </button>
+        </div>
       </div>
     );
   }
@@ -283,7 +365,17 @@ export function LibrarySelectionCard({ isPlexConnected, onComplete }: LibrarySel
 
       {/* Save Button */}
       {selectedServer && libraries.length > 0 && (
-        <div className="px-6 py-4 border-t border-white/5 flex justify-end">
+        <div className="px-6 py-4 border-t border-white/5 flex justify-between">
+          {hasSavedSelection && showForm ? (
+            <button
+              onClick={() => setShowForm(false)}
+              className="px-4 py-2 rounded-lg text-sm font-medium bg-white/5 hover:bg-white/10 text-white/60 hover:text-white transition-all"
+            >
+              Cancel
+            </button>
+          ) : (
+            <div />
+          )}
           <button
             onClick={handleSave}
             disabled={isSaving || selectedLibraries.length === 0}
