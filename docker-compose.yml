@@ -1,0 +1,44 @@
+services:
+  plex-collection-creator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: plex-collection-creator
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      # Persist SQLite database across container restarts
+      - plex-collections-data:/app/data
+    environment:
+      # Database location (inside container)
+      - DATABASE_URL=/app/data/plex-collections.db
+
+      # Encryption key for storing sensitive data
+      # Generate with: openssl rand -hex 32
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-}
+
+      # AI Provider credentials (configure one)
+      # Anthropic (direct API)
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+
+      # Amazon Bedrock (uses AWS credentials)
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
+      - AWS_REGION=${AWS_REGION:-us-east-1}
+
+      # Google Vertex AI
+      - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS:-}
+
+      # OpenAI
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  plex-collections-data:
+    driver: local

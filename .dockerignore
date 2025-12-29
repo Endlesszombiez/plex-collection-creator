@@ -1,0 +1,49 @@
+# Dependencies
+node_modules
+npm-debug.log
+
+# Next.js build output
+.next
+
+# Database files (will be mounted as volume)
+data/
+*.db
+*.db-wal
+*.db-shm
+
+# Git
+.git
+.gitignore
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Documentation (not needed in container)
+*.md
+!README.md
+
+# EPCC workflow files (not needed in container)
+EPCC_*.md
+epcc-*.json
+epcc-*.md
+PRD.md
+
+# Environment files (passed at runtime)
+.env
+.env.*
+!.env.example
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test files
+coverage/
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+__tests__/
