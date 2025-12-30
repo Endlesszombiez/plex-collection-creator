@@ -176,6 +176,29 @@ export function filterMediaLibraries(libraries: PlexLibrary[]): PlexLibrary[] {
   return libraries.filter((lib) => lib.type === "movie" || lib.type === "show");
 }
 
+/**
+ * Get the current working URL for a server by its clientIdentifier.
+ * This fetches fresh connection info from Plex to handle IP changes.
+ */
+export async function getCurrentServerUrl(
+  clientIdentifier: string
+): Promise<{ uri: string; token: string } | null> {
+  try {
+    const servers = await getPlexServers();
+    const server = servers.find((s) => s.clientIdentifier === clientIdentifier);
+
+    if (!server) {
+      console.error(`Server with ID ${clientIdentifier} not found`);
+      return null;
+    }
+
+    return await findWorkingConnection(server);
+  } catch (error) {
+    console.error("Error getting current server URL:", error);
+    return null;
+  }
+}
+
 // Types for library items
 export interface PlexMediaItem {
   ratingKey: string;

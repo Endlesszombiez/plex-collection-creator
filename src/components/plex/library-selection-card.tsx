@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { usePlexServers } from "@/hooks/use-plex-servers";
 import { useSavedLibraries } from "@/hooks/use-saved-libraries";
 
@@ -91,6 +91,16 @@ export function LibrarySelectionCard({ isPlexConnected, onComplete }: LibrarySel
   } = useSavedLibraries();
 
   const [showForm, setShowForm] = useState(false);
+  const prevConnectedRef = useRef<boolean | null>(null);
+
+  // Refresh saved libraries when Plex connection status changes
+  useEffect(() => {
+    // On initial render or when connection status changes, refresh
+    if (prevConnectedRef.current !== null && prevConnectedRef.current !== isPlexConnected) {
+      refreshSaved();
+    }
+    prevConnectedRef.current = isPlexConnected;
+  }, [isPlexConnected, refreshSaved]);
 
   // Fetch servers when Plex is connected and we're showing the form
   useEffect(() => {
@@ -108,27 +118,55 @@ export function LibrarySelectionCard({ isPlexConnected, onComplete }: LibrarySel
     }
   };
 
-  // Not connected state
+  // Not connected state - matches configured card structure
   if (!isPlexConnected) {
     return (
-      <div className="rounded-xl border border-white/10 bg-white/[0.02] p-8 text-center">
-        <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-4">
-          <ServerIcon className="w-6 h-6 text-white/30" />
+      <div className="rounded-xl border border-white/10 bg-white/[0.02] overflow-hidden">
+        <div className="p-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center">
+                <ServerIcon className="w-6 h-6 text-white/30" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-white/40 mb-0.5">Libraries</h3>
+                <p className="text-sm text-white/30">Connect Plex to select libraries</p>
+              </div>
+            </div>
+            <div className="px-3 py-1 rounded-full text-xs font-medium bg-white/5 text-white/30">
+              Not configured
+            </div>
+          </div>
         </div>
-        <p className="text-white/40 text-sm">
-          Connect to Plex first to select your libraries
-        </p>
+        <div className="px-6 py-4 border-t border-white/5 flex justify-end">
+          <div className="h-10 w-36 rounded-lg bg-white/5" />
+        </div>
       </div>
     );
   }
 
-  // Loading saved state
+  // Loading saved state - skeleton matches loaded structure
   if (isLoadingSaved) {
     return (
-      <div className="rounded-xl border border-white/10 bg-white/[0.02] p-6">
-        <div className="flex items-center justify-center gap-3 py-8">
-          <LoadingSpinner className="h-5 w-5 text-[#E5A00D]" />
-          <span className="text-white/60">Loading saved libraries...</span>
+      <div className="rounded-xl border border-white/10 bg-white/[0.02] overflow-hidden">
+        <div className="p-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-white/5 animate-pulse" />
+              <div>
+                <div className="h-5 w-32 bg-white/10 rounded animate-pulse mb-1.5" />
+                <div className="h-4 w-40 bg-white/5 rounded animate-pulse" />
+              </div>
+            </div>
+            <div className="h-6 w-24 bg-white/5 rounded-full animate-pulse" />
+          </div>
+          <div className="mt-4 flex gap-2">
+            <div className="h-8 w-24 bg-white/5 rounded-lg animate-pulse" />
+            <div className="h-8 w-28 bg-white/5 rounded-lg animate-pulse" />
+          </div>
+        </div>
+        <div className="px-6 py-4 border-t border-white/5 flex justify-end">
+          <div className="h-10 w-36 bg-white/5 rounded-lg animate-pulse" />
         </div>
       </div>
     );

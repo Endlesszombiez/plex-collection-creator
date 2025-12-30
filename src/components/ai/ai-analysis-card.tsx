@@ -3,14 +3,19 @@
 import { useAIAnalysis } from "@/hooks/use-ai-analysis";
 import { Sparkles, Loader2, CheckCircle2, AlertCircle, RefreshCw, ArrowRight, Square } from "lucide-react";
 import Link from "next/link";
+import { AnalysisCardLayout } from "./analysis-card-layout";
 
 interface AIAnalysisCardProps {
   scanId: number;
   movieCount: number;
   showCount: number;
+  /** When true, renders without outer border/padding (for embedding in parent card) */
+  embedded?: boolean;
+  /** Callback when user wants to review suggestions (instead of navigating to /suggestions) */
+  onReviewSuggestions?: () => void;
 }
 
-export function AIAnalysisCard({ scanId, movieCount, showCount }: AIAnalysisCardProps) {
+export function AIAnalysisCard({ scanId, movieCount, showCount, embedded = false, onReviewSuggestions }: AIAnalysisCardProps) {
   const {
     status,
     progress,
@@ -40,74 +45,122 @@ export function AIAnalysisCard({ scanId, movieCount, showCount }: AIAnalysisCard
     }
   };
 
+  const wrapperClass = embedded
+    ? ""
+    : "rounded-xl border border-white/10 bg-white/[0.02] overflow-hidden";
+
+  const innerClass = embedded ? "" : "p-6";
+  const actionsClass = embedded
+    ? "pt-4 flex justify-end gap-3"
+    : "px-6 py-4 border-t border-white/5 flex justify-end gap-3";
+
   return (
-    <div className="rounded-xl border border-white/10 bg-white/[0.02] overflow-hidden">
-      <div className="p-6">
-        {/* Header */}
-        <div className="flex items-start justify-between gap-4 mb-6">
-          <div className="flex items-center gap-4">
-            <div className={`
-              relative flex items-center justify-center w-12 h-12 rounded-xl
-              ${status === "complete" ? "bg-emerald-500/20" :
-                status === "error" ? "bg-red-500/20" :
-                status === "analyzing" ? "bg-[#E5A00D]/20" : "bg-[#E5A00D]/10"}
-            `}>
-              {status === "idle" && <Sparkles className="h-6 w-6 text-[#E5A00D]" />}
-              {status === "analyzing" && (
-                <Loader2 className="h-6 w-6 text-[#E5A00D] animate-spin" />
-              )}
-              {status === "complete" && (
-                <CheckCircle2 className="h-6 w-6 text-emerald-400" />
-              )}
-              {status === "error" && (
-                <AlertCircle className="h-6 w-6 text-red-400" />
-              )}
+    <div className={wrapperClass}>
+      <div className={innerClass}>
+        {/* Header - hidden when embedded and idle */}
+        {!(embedded && status === "idle") && (
+          <div className="flex items-start justify-between gap-4 mb-4">
+            <div className="flex items-center gap-4">
+              <div className={`
+                relative flex items-center justify-center w-12 h-12 rounded-xl
+                ${status === "complete" ? "bg-emerald-500/20" :
+                  status === "error" ? "bg-red-500/20" :
+                  status === "analyzing" ? "bg-[#E5A00D]/20" : "bg-[#E5A00D]/10"}
+              `}>
+                {status === "idle" && <Sparkles className="h-6 w-6 text-[#E5A00D]" />}
+                {status === "analyzing" && (
+                  <Loader2 className="h-6 w-6 text-[#E5A00D] animate-spin" />
+                )}
+                {status === "complete" && (
+                  <CheckCircle2 className="h-6 w-6 text-emerald-400" />
+                )}
+                {status === "error" && (
+                  <AlertCircle className="h-6 w-6 text-red-400" />
+                )}
+              </div>
+              <div>
+                <h3 className="font-semibold text-white mb-0.5">
+                  {status === "idle" && "AI Collection Analysis"}
+                  {status === "analyzing" && "Analyzing Library"}
+                  {status === "complete" && "Analysis Complete"}
+                  {status === "error" && "Analysis Failed"}
+                </h3>
+                <p className="text-sm text-white/50">
+                  {getPhaseMessage()}
+                </p>
+              </div>
             </div>
+
+            {status === "complete" && suggestionsCount > 0 && (
+              <div className="px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/20 text-emerald-400">
+                {suggestionsCount} Suggestions
+              </div>
+            )}
+            {status === "complete" && suggestionsCount === 0 && (
+              <div className="px-3 py-1 rounded-full text-xs font-medium bg-[#E5A00D]/20 text-[#E5A00D]">
+                Up to date
+              </div>
+            )}
+            {status === "error" && (
+              <div className="px-3 py-1 rounded-full text-xs font-medium bg-red-500/20 text-red-400">
+                Error
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Idle state - use shared layout when embedded */}
+        {status === "idle" && embedded && (
+          <AnalysisCardLayout
+            label="Auto-detect collection opportunities"
+            movieCount={movieCount}
+            showCount={showCount}
+            actionButton={
+              <button
+                onClick={() => startAnalysis(scanId)}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#E5A00D] text-black font-medium text-sm hover:bg-[#E5A00D]/90 transition-colors"
+              >
+                <Sparkles className="h-4 w-4" />
+                Generate Suggestions
+              </button>
+            }
+            expandableContent={
+              // Invisible placeholder to match height of "Show examples" in Custom Search
+              <div className="h-5" aria-hidden="true" />
+            }
+          >
+            <div className="h-full p-3 rounded-lg bg-white/5 border border-white/10">
+              <ul className="text-sm text-white/40 space-y-1">
+                <li>• Franchises and series</li>
+                <li>• Director filmographies</li>
+                <li>• Shared actors and themes</li>
+                <li>• Genres and decades</li>
+              </ul>
+            </div>
+          </AnalysisCardLayout>
+        )}
+
+        {/* Idle state - standalone (non-embedded) */}
+        {status === "idle" && !embedded && (
+          <div className="space-y-4">
             <div>
-              <h3 className="font-semibold text-white mb-0.5">
-                {status === "idle" && "AI Collection Analysis"}
-                {status === "analyzing" && "Analyzing Library"}
-                {status === "complete" && "Analysis Complete"}
-                {status === "error" && "Analysis Failed"}
-              </h3>
-              <p className="text-sm text-white/50">
-                {getPhaseMessage()}
+              <p className="text-sm font-medium text-white/70 mb-2">
+                Auto-detect collection opportunities
+              </p>
+              <div className="min-h-[7rem] p-3 rounded-lg bg-white/5 border border-white/10">
+                <ul className="text-sm text-white/40 space-y-1">
+                  <li>• Franchises and series</li>
+                  <li>• Director filmographies</li>
+                  <li>• Shared actors and themes</li>
+                  <li>• Genres and decades</li>
+                </ul>
+              </div>
+            </div>
+            <div className="flex items-center justify-end">
+              <p className="text-xs text-white/30">
+                {totalItems} items ({movieCount} movies, {showCount} shows)
               </p>
             </div>
-          </div>
-
-          {status === "complete" && suggestionsCount > 0 && (
-            <div className="px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/20 text-emerald-400">
-              {suggestionsCount} Suggestions
-            </div>
-          )}
-          {status === "complete" && suggestionsCount === 0 && (
-            <div className="px-3 py-1 rounded-full text-xs font-medium bg-[#E5A00D]/20 text-[#E5A00D]">
-              Up to date
-            </div>
-          )}
-          {status === "error" && (
-            <div className="px-3 py-1 rounded-full text-xs font-medium bg-red-500/20 text-red-400">
-              Error
-            </div>
-          )}
-        </div>
-
-        {/* Idle state - show what will be analyzed */}
-        {status === "idle" && (
-          <div className="mb-6 p-4 rounded-lg bg-white/5">
-            <p className="text-sm text-white/60 mb-2">
-              AI will analyze your library and suggest collections based on:
-            </p>
-            <ul className="text-sm text-white/40 space-y-1">
-              <li>• Franchises and series</li>
-              <li>• Director filmographies</li>
-              <li>• Shared actors and themes</li>
-              <li>• Genres and decades</li>
-            </ul>
-            <p className="text-xs text-white/30 mt-3">
-              {totalItems} items will be analyzed ({movieCount} movies, {showCount} shows)
-            </p>
           </div>
         )}
 
@@ -176,17 +229,18 @@ export function AIAnalysisCard({ scanId, movieCount, showCount }: AIAnalysisCard
         )}
       </div>
 
-      {/* Actions */}
-      <div className="px-6 py-4 border-t border-white/5 flex justify-end gap-3">
-        {status === "idle" && (
-          <button
-            onClick={() => startAnalysis(scanId)}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#E5A00D] text-black font-medium text-sm hover:bg-[#E5A00D]/90 transition-colors"
-          >
-            <Sparkles className="h-4 w-4" />
-            Generate Suggestions
-          </button>
-        )}
+      {/* Actions - hidden when embedded and idle (button is in layout) */}
+      {!(embedded && status === "idle") && (
+        <div className={actionsClass}>
+          {status === "idle" && (
+            <button
+              onClick={() => startAnalysis(scanId)}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#E5A00D] text-black font-medium text-sm hover:bg-[#E5A00D]/90 transition-colors"
+            >
+              <Sparkles className="h-4 w-4" />
+              Generate Suggestions
+            </button>
+          )}
         {status === "analyzing" && (
           <button
             onClick={cancelAnalysis}
@@ -205,13 +259,23 @@ export function AIAnalysisCard({ scanId, movieCount, showCount }: AIAnalysisCard
               <RefreshCw className="h-4 w-4" />
               Regenerate
             </button>
-            <Link
-              href="/suggestions"
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#E5A00D] text-black font-medium text-sm hover:bg-[#E5A00D]/90 transition-colors"
-            >
-              Review Suggestions
-              <ArrowRight className="h-4 w-4" />
-            </Link>
+            {onReviewSuggestions ? (
+              <button
+                onClick={onReviewSuggestions}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#E5A00D] text-black font-medium text-sm hover:bg-[#E5A00D]/90 transition-colors"
+              >
+                Review Suggestions
+                <ArrowRight className="h-4 w-4" />
+              </button>
+            ) : (
+              <Link
+                href="/suggestions"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#E5A00D] text-black font-medium text-sm hover:bg-[#E5A00D]/90 transition-colors"
+              >
+                Review Suggestions
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            )}
           </>
         )}
         {status === "complete" && suggestionsCount === 0 && (
@@ -232,7 +296,8 @@ export function AIAnalysisCard({ scanId, movieCount, showCount }: AIAnalysisCard
             Try Again
           </button>
         )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

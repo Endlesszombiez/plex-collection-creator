@@ -1,8 +1,9 @@
 import Database from "better-sqlite3";
 import { drizzle, BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
+import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 import * as schema from "./schema";
 import { existsSync, mkdirSync } from "fs";
-import { dirname } from "path";
+import { dirname, join } from "path";
 
 // Database path - configurable via environment variable
 const DATABASE_PATH = process.env.DATABASE_URL || "./data/plex-collections.db";
@@ -10,6 +11,7 @@ const DATABASE_PATH = process.env.DATABASE_URL || "./data/plex-collections.db";
 // Singleton pattern to avoid multiple connections during build
 let sqlite: Database.Database | null = null;
 let drizzleDb: BetterSQLite3Database<typeof schema> | null = null;
+let migrationRun = false;
 
 /**
  * Get the database instance (lazy initialization).
@@ -37,6 +39,31 @@ function getDb(): BetterSQLite3Database<typeof schema> {
 
   // Create Drizzle ORM instance with schema
   drizzleDb = drizzle(sqlite, { schema });
+
+  // Run migrations on first connection (if not already run)
+  if (!migrationRun) {
+    try {
+      // Try multiple possible migration paths (dev vs Docker)
+      const possiblePaths = [
+        join(process.cwd(), "drizzle"),
+        "./drizzle",
+        "/app/drizzle",
+      ];
+
+      for (const migrationsPath of possiblePaths) {
+        if (existsSync(migrationsPath)) {
+          migrate(drizzleDb, { migrationsFolder: migrationsPath });
+          console.log(`Database migrations applied from ${migrationsPath}`);
+          break;
+        }
+      }
+      migrationRun = true;
+    } catch (error) {
+      console.error("Migration error:", error);
+      // Continue anyway - tables might already exist
+      migrationRun = true;
+    }
+  }
 
   return drizzleDb;
 }

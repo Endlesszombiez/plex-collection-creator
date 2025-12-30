@@ -1,6 +1,11 @@
 "use client";
 
+import { useEffect } from "react";
 import { usePlexAuth } from "@/hooks/use-plex-auth";
+
+interface PlexConnectionCardProps {
+  onAuthChange?: (connected: boolean) => void;
+}
 
 function LoadingSpinner({ className = "h-4 w-4" }: { className?: string }) {
   return (
@@ -48,7 +53,7 @@ function CheckIcon({ className }: { className?: string }) {
   );
 }
 
-export function PlexConnectionCard() {
+export function PlexConnectionCard({ onAuthChange }: PlexConnectionCardProps) {
   const {
     status,
     isLoading,
@@ -60,12 +65,30 @@ export function PlexConnectionCard() {
 
   const isConnected = status?.connected ?? false;
 
+  // Notify parent when auth status changes
+  useEffect(() => {
+    if (status?.connected !== undefined) {
+      onAuthChange?.(status.connected);
+    }
+  }, [status?.connected, onAuthChange]);
+
   if (isLoading) {
     return (
-      <div className="rounded-xl border border-white/10 bg-white/[0.02] p-6">
-        <div className="flex items-center justify-center gap-3 py-4">
-          <LoadingSpinner className="h-5 w-5 text-white/40" />
-          <span className="text-white/40">Checking connection...</span>
+      <div className="rounded-xl border border-white/10 bg-white/[0.02] overflow-hidden">
+        <div className="p-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-white/5 animate-pulse" />
+              <div>
+                <div className="h-5 w-16 bg-white/10 rounded animate-pulse mb-1.5" />
+                <div className="h-4 w-32 bg-white/5 rounded animate-pulse" />
+              </div>
+            </div>
+            <div className="h-6 w-24 bg-white/5 rounded-full animate-pulse" />
+          </div>
+        </div>
+        <div className="px-6 py-4 border-t border-white/5 flex justify-end">
+          <div className="h-10 w-32 bg-white/5 rounded-lg animate-pulse" />
         </div>
       </div>
     );

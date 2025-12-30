@@ -109,13 +109,25 @@ export function AIConfigCard({ onComplete }: AIConfigCardProps) {
     (field) => !field.required || credentials[field.key]
   );
 
-  // Loading state
+  // Loading state - skeleton matches loaded structure
   if (isLoading) {
     return (
-      <div className="rounded-xl border border-white/10 bg-white/[0.02] p-6">
-        <div className="flex items-center justify-center gap-3 py-8">
-          <LoadingSpinner className="h-5 w-5 text-[#E5A00D]" />
-          <span className="text-white/60">Loading AI configuration...</span>
+      <div className="rounded-xl border border-white/10 bg-white/[0.02] overflow-hidden">
+        <div className="p-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-white/5 animate-pulse" />
+              <div>
+                <div className="h-5 w-24 bg-white/10 rounded animate-pulse mb-1.5" />
+                <div className="h-4 w-36 bg-white/5 rounded animate-pulse" />
+              </div>
+            </div>
+            <div className="h-6 w-24 bg-white/5 rounded-full animate-pulse" />
+          </div>
+        </div>
+        <div className="px-6 py-4 border-t border-white/5 flex justify-end gap-2">
+          <div className="h-10 w-32 bg-white/5 rounded-lg animate-pulse" />
+          <div className="h-10 w-28 bg-white/5 rounded-lg animate-pulse" />
         </div>
       </div>
     );
@@ -256,48 +268,60 @@ export function AIConfigCard({ onComplete }: AIConfigCardProps) {
       </div>
 
       {/* Actions */}
-      <div className="px-6 py-4 border-t border-white/5 flex justify-between">
-        {configured && (
-          <button
-            onClick={() => {
-              setShowForm(false);
-              setCredentials({});
-              clearTestResult();
-            }}
-            className="px-4 py-2 rounded-lg text-sm font-medium bg-white/5 hover:bg-white/10 text-white/60 hover:text-white transition-all"
-          >
-            Cancel
-          </button>
+      <div className="px-6 py-4 border-t border-white/5">
+        {/* Hint about test requirement */}
+        {isFormValid && !testResult?.success && (
+          <p className="text-xs text-white/40 mb-3 text-center">
+            Test your connection to enable saving
+          </p>
         )}
-        <div className={`flex gap-2 ${!configured ? "ml-auto" : ""}`}>
-          <button
-            onClick={handleTest}
-            disabled={!isFormValid || isTesting}
-            className="px-4 py-2 rounded-lg text-sm font-medium bg-white/5 hover:bg-white/10 text-white/60 hover:text-white border border-white/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isTesting ? (
-              <>
-                <LoadingSpinner className="h-4 w-4 inline mr-2" />
-                Testing...
-              </>
-            ) : (
-              "Test Connection"
-            )}
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={!isFormValid || isSaving || (!testResult?.success && !testResult)}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold bg-[#E5A00D] hover:bg-[#E5A00D]/90 active:bg-[#E5A00D]/80 text-black transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-[#E5A00D]/20"
-          >
-            {isSaving ? (
-              <>
-                <LoadingSpinner className="h-4 w-4" />
-                Saving...
-              </>
-            ) : (
-              "Save Configuration"
-            )}
-          </button>
+        <div className="flex justify-between">
+          {configured && (
+            <button
+              onClick={() => {
+                setShowForm(false);
+                setCredentials({});
+                clearTestResult();
+              }}
+              className="px-4 py-2 rounded-lg text-sm font-medium bg-white/5 hover:bg-white/10 text-white/60 hover:text-white transition-all"
+            >
+              Cancel
+            </button>
+          )}
+          <div className={`flex gap-2 ${!configured ? "ml-auto" : ""}`}>
+            <button
+              onClick={handleTest}
+              disabled={!isFormValid || isTesting}
+              className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                !testResult?.success && isFormValid
+                  ? "bg-[#E5A00D] hover:bg-[#E5A00D]/90 active:bg-[#E5A00D]/80 text-black shadow-lg shadow-[#E5A00D]/20"
+                  : "bg-white/5 hover:bg-white/10 text-white/60 hover:text-white border border-white/10"
+              }`}
+            >
+              {isTesting ? (
+                <>
+                  <LoadingSpinner className="h-4 w-4" />
+                  Testing...
+                </>
+              ) : (
+                "Test Connection"
+              )}
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={!isFormValid || isSaving || !testResult?.success}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold bg-[#E5A00D] hover:bg-[#E5A00D]/90 active:bg-[#E5A00D]/80 text-black transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-[#E5A00D]/20"
+            >
+              {isSaving ? (
+                <>
+                  <LoadingSpinner className="h-4 w-4" />
+                  Saving...
+                </>
+              ) : (
+                "Save Configuration"
+              )}
+            </button>
+          </div>
         </div>
       </div>
     </div>

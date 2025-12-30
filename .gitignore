@@ -43,3 +43,17 @@ next-env.d.ts
 
 # database
 /data/
+*.db
+
+# local development
+.mcp.json
+.playwright-mcp/
+
+# internal docs (not for public repo)
+PRD.md
+EPCC_PLAN.md
+epcc-features.json
+epcc-progress.md
+
+# claude plans
+.claude/

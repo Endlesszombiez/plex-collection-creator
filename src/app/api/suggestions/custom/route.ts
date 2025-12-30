@@ -7,9 +7,10 @@ import {
   createCustomAnalysisPrompt,
   parseAIResponse,
   validateCollections,
+  PreviousSuggestion,
 } from "@/lib/ai/prompts";
 import { generateText } from "ai";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, inArray, and } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120; // Allow up to 2 minutes for AI analysis
@@ -217,6 +218,45 @@ export async function GET(request: Request) {
           return true;
         });
 
+        // Fetch previously suggested collections to avoid re-suggesting them
+        // 1. Current scan's pending/approved (don't duplicate what's already in queue)
+        const currentScanSuggestions = await db
+          .select({
+            collectionName: suggestions.collectionName,
+            itemCount: suggestions.itemCount,
+          })
+          .from(suggestions)
+          .where(
+            and(
+              eq(suggestions.scanId, scanId),
+              inArray(suggestions.status, ["pending", "approved"])
+            )
+          );
+
+        // 2. ALL rejected suggestions across ALL scans (respect user's rejections)
+        const rejectedSuggestions = await db
+          .select({
+            collectionName: suggestions.collectionName,
+            itemCount: suggestions.itemCount,
+          })
+          .from(suggestions)
+          .where(eq(suggestions.status, "rejected"));
+
+        // Combine and deduplicate by collection name
+        const seenNames = new Set<string>();
+        const previousSuggestions: PreviousSuggestion[] = [];
+
+        for (const s of [...currentScanSuggestions, ...rejectedSuggestions]) {
+          const normalized = s.collectionName.toLowerCase().trim();
+          if (!seenNames.has(normalized)) {
+            seenNames.add(normalized);
+            previousSuggestions.push({
+              collectionName: s.collectionName,
+              itemCount: s.itemCount,
+            });
+          }
+        }
+
         send({
           type: "progress",
           phase: "analyzing",
@@ -224,8 +264,8 @@ export async function GET(request: Request) {
           totalItems,
         });
 
-        // Create custom prompt with existing collections context
-        const prompt = createCustomAnalysisPrompt(allMovies, allShows, customPrompt, existingCollections);
+        // Create custom prompt with existing collections and previous suggestions context
+        const prompt = createCustomAnalysisPrompt(allMovies, allShows, customPrompt, existingCollections, previousSuggestions);
 
         const { text: aiResponse } = await generateText({
           // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db, settings, suggestions, appliedCollections } from "@/lib/db";
-import { getPlexToken } from "@/lib/plex/auth";
-import { eq } from "drizzle-orm";
+import { getCurrentServerUrl } from "@/lib/plex/client";
+import { eq, inArray } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
 
@@ -22,20 +22,26 @@ async function getExistingCollections(
 ): Promise<PlexCollection[]> {
   const url = `${serverUrl}/library/sections/${sectionId}/collections`;
 
-  const response = await fetch(url, {
-    headers: {
-      Accept: "application/json",
-      "X-Plex-Token": token,
-    },
-  });
+  try {
+    const response = await fetch(url, {
+      headers: {
+        Accept: "application/json",
+        "X-Plex-Token": token,
+      },
+      signal: AbortSignal.timeout(5000), // 5 second timeout
+    });
 
-  if (!response.ok) {
-    console.error("Failed to fetch collections:", response.statusText);
-    return [];
+    if (!response.ok) {
+      console.error("Failed to fetch collections:", response.statusText);
+      return [];
+    }
+
+    const data = await response.json();
+    return data.MediaContainer?.Metadata || [];
+  } catch (error) {
+    console.error("Error connecting to Plex server:", error);
+    throw new Error("Cannot connect to Plex server. Please check your connection in Settings.");
   }
-
-  const data = await response.json();
-  return data.MediaContainer?.Metadata || [];
 }
 
 /**
@@ -51,10 +57,18 @@ function findCollectionByName(
   );
 }
 
+interface PlexMediaItem {
+  ratingKey: string;
+  title: string;
+  year?: number;
+  thumb?: string;
+  type: string;
+}
+
 /**
- * Get items currently in a collection.
+ * Get items currently in a collection (rating keys only).
  */
-async function getCollectionItems(
+async function getCollectionItemKeys(
   serverUrl: string,
   token: string,
   collectionKey: string
@@ -76,6 +90,82 @@ async function getCollectionItems(
   const data = await response.json();
   const items = data.MediaContainer?.Metadata || [];
   return items.map((item: { ratingKey: string }) => item.ratingKey);
+}
+
+/**
+ * Get full item details for a collection.
+ */
+async function getCollectionItemsFull(
+  serverUrl: string,
+  token: string,
+  collectionKey: string
+): Promise<PlexMediaItem[]> {
+  const url = `${serverUrl}/library/collections/${collectionKey}/children`;
+
+  const response = await fetch(url, {
+    headers: {
+      Accept: "application/json",
+      "X-Plex-Token": token,
+    },
+  });
+
+  if (!response.ok) {
+    console.error("Failed to fetch collection items:", response.statusText);
+    return [];
+  }
+
+  const data = await response.json();
+  const items = data.MediaContainer?.Metadata || [];
+  return items.map((item: { ratingKey: string; title: string; year?: number; thumb?: string; type: string }) => ({
+    ratingKey: item.ratingKey,
+    title: item.title,
+    year: item.year,
+    thumb: item.thumb,
+    type: item.type,
+  }));
+}
+
+/**
+ * Delete a collection from Plex.
+ */
+async function deleteCollection(
+  serverUrl: string,
+  token: string,
+  collectionKey: string
+): Promise<boolean> {
+  const url = `${serverUrl}/library/collections/${collectionKey}`;
+
+  const response = await fetch(url, {
+    method: "DELETE",
+    headers: {
+      Accept: "application/json",
+      "X-Plex-Token": token,
+    },
+  });
+
+  return response.ok;
+}
+
+/**
+ * Remove an item from a collection.
+ */
+async function removeItemFromCollection(
+  serverUrl: string,
+  token: string,
+  collectionKey: string,
+  itemKey: string
+): Promise<boolean> {
+  const url = `${serverUrl}/library/collections/${collectionKey}/items/${itemKey}`;
+
+  const response = await fetch(url, {
+    method: "DELETE",
+    headers: {
+      Accept: "application/json",
+      "X-Plex-Token": token,
+    },
+  });
+
+  return response.ok;
 }
 
 /**
@@ -201,29 +291,25 @@ export async function POST(request: Request) {
       );
     }
 
-    const { plexServerUrl, plexServerId, selectedLibraries } = settingsResult[0];
-
-    if (!plexServerUrl) {
-      return NextResponse.json(
-        { success: false, error: "No Plex server configured" },
-        { status: 400 }
-      );
-    }
+    const { plexServerId, selectedLibraries } = settingsResult[0];
 
     if (!plexServerId) {
       return NextResponse.json(
-        { success: false, error: "No Plex server ID configured. Please reconnect to your server." },
+        { success: false, error: "No Plex server configured. Please reconnect to your server." },
         { status: 400 }
       );
     }
 
-    const token = await getPlexToken();
-    if (!token) {
+    // Get current working server URL (handles IP changes)
+    const serverConnection = await getCurrentServerUrl(plexServerId);
+    if (!serverConnection) {
       return NextResponse.json(
-        { success: false, error: "No Plex token available" },
-        { status: 401 }
+        { success: false, error: "Cannot connect to Plex server. Server may be offline." },
+        { status: 503 }
       );
     }
+
+    const { uri: plexServerUrl, token } = serverConnection;
 
     // Get the library section ID
     let sectionId: string | null = null;
@@ -252,7 +338,7 @@ export async function POST(request: Request) {
     if (existingCollection) {
       // Collection exists - get current items to avoid duplicates
       collectionKey = existingCollection.ratingKey;
-      const currentItems = await getCollectionItems(plexServerUrl, token, collectionKey);
+      const currentItems = await getCollectionItemKeys(plexServerUrl, token, collectionKey);
       const currentItemsSet = new Set(currentItems);
 
       // Only add items not already in the collection
@@ -315,14 +401,15 @@ export async function POST(request: Request) {
       addResult.errors = result.errors;
     }
 
-    // Update suggestion status to applied
-    await db
-      .update(suggestions)
-      .set({ status: "applied" })
-      .where(eq(suggestions.id, suggestionId));
-
-    // Record the applied collection (only for new collections)
+    // Only mark as "applied" and create record when a NEW collection is created
+    // When adding to an existing collection, keep the suggestion as "approved" so it doesn't
+    // create duplicates in the suggestions list
     if (isNewCollection) {
+      await db
+        .update(suggestions)
+        .set({ status: "applied" })
+        .where(eq(suggestions.id, suggestionId));
+
       await db.insert(appliedCollections).values({
         suggestionId,
         plexCollectionKey: collectionKey,
@@ -356,35 +443,80 @@ export async function POST(request: Request) {
 /**
  * GET /api/plex/collections
  * Fetch existing Plex collections and applied collections.
+ * If ?collectionKey=X is provided, returns items for that collection.
  */
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    // Get applied collections from our database
-    const appliedResults = await db.select().from(appliedCollections);
+    const { searchParams } = new URL(request.url);
+    const collectionKey = searchParams.get("collectionKey");
 
-    // Also try to fetch current Plex collections
+    // Get settings for Plex connection
     const settingsResult = await db.select().from(settings).limit(1);
+    if (settingsResult.length === 0) {
+      return NextResponse.json(
+        { success: false, error: "No settings configured" },
+        { status: 400 }
+      );
+    }
+
+    const { plexServerId, selectedLibraries } = settingsResult[0];
+
+    if (!plexServerId) {
+      return NextResponse.json(
+        { success: false, error: "No Plex server configured" },
+        { status: 401 }
+      );
+    }
+
+    // Get current working server URL (handles IP changes)
+    const serverConnection = await getCurrentServerUrl(plexServerId);
+    if (!serverConnection) {
+      return NextResponse.json(
+        { success: false, error: "Cannot connect to Plex server. Server may be offline." },
+        { status: 503 }
+      );
+    }
+
+    const { uri: serverUrl, token } = serverConnection;
+
+    // If collectionKey provided, return items for that collection
+    if (collectionKey) {
+      const items = await getCollectionItemsFull(serverUrl, token, collectionKey);
+      return NextResponse.json({
+        success: true,
+        items,
+      });
+    }
+
+    // Otherwise, return all collections
     let plexCollections: PlexCollection[] = [];
 
-    if (settingsResult.length > 0) {
-      const { plexServerUrl, selectedLibraries } = settingsResult[0];
-      const token = await getPlexToken();
-
-      if (plexServerUrl && token && selectedLibraries) {
-        const libraries = JSON.parse(selectedLibraries);
-        if (libraries.length > 0) {
-          plexCollections = await getExistingCollections(
-            plexServerUrl,
-            token,
-            libraries[0].key
-          );
-        }
+    if (selectedLibraries) {
+      const libraries = JSON.parse(selectedLibraries);
+      if (libraries.length > 0) {
+        plexCollections = await getExistingCollections(
+          serverUrl,
+          token,
+          libraries[0].key
+        );
       }
     }
 
+    // Get applied collections from database
+    const appliedResults = await db.select().from(appliedCollections);
+
+    // Build set of actual Plex collection keys for quick lookup
+    const plexCollectionKeys = new Set(plexCollections.map((c) => c.ratingKey));
+
+    // Add sync status to each applied collection (instead of auto-deleting)
+    const appliedWithSyncStatus = appliedResults.map((ac) => ({
+      ...ac,
+      existsInPlex: plexCollectionKeys.has(ac.plexCollectionKey),
+    }));
+
     return NextResponse.json({
       success: true,
-      appliedCollections: appliedResults,
+      appliedCollections: appliedWithSyncStatus,
       plexCollections: plexCollections.map((c) => ({
         ratingKey: c.ratingKey,
         title: c.title,
@@ -397,6 +529,101 @@ export async function GET() {
       {
         success: false,
         error: error instanceof Error ? error.message : "Failed to fetch collections",
+      },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * DELETE /api/plex/collections
+ * Delete a collection or remove an item from a collection.
+ * Query params:
+ *   - collectionKey: Required. The collection to delete or modify.
+ *   - itemKey: Optional. If provided, removes this item from the collection.
+ *              If not provided, deletes the entire collection.
+ */
+export async function DELETE(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const collectionKey = searchParams.get("collectionKey");
+    const itemKey = searchParams.get("itemKey");
+
+    if (!collectionKey) {
+      return NextResponse.json(
+        { success: false, error: "collectionKey is required" },
+        { status: 400 }
+      );
+    }
+
+    // Get settings for Plex connection
+    const settingsResult = await db.select().from(settings).limit(1);
+    if (settingsResult.length === 0) {
+      return NextResponse.json(
+        { success: false, error: "No settings configured" },
+        { status: 400 }
+      );
+    }
+
+    const { plexServerId } = settingsResult[0];
+
+    if (!plexServerId) {
+      return NextResponse.json(
+        { success: false, error: "No Plex server configured" },
+        { status: 401 }
+      );
+    }
+
+    // Get current working server URL (handles IP changes)
+    const serverConnection = await getCurrentServerUrl(plexServerId);
+    if (!serverConnection) {
+      return NextResponse.json(
+        { success: false, error: "Cannot connect to Plex server. Server may be offline." },
+        { status: 503 }
+      );
+    }
+
+    const { uri: serverUrl, token } = serverConnection;
+
+    if (itemKey) {
+      // Remove specific item from collection
+      const success = await removeItemFromCollection(serverUrl, token, collectionKey, itemKey);
+      if (!success) {
+        return NextResponse.json(
+          { success: false, error: "Failed to remove item from collection" },
+          { status: 500 }
+        );
+      }
+      return NextResponse.json({
+        success: true,
+        message: "Item removed from collection",
+      });
+    } else {
+      // Delete entire collection
+      const success = await deleteCollection(serverUrl, token, collectionKey);
+      if (!success) {
+        return NextResponse.json(
+          { success: false, error: "Failed to delete collection" },
+          { status: 500 }
+        );
+      }
+
+      // Also remove from our appliedCollections table if it exists there
+      await db
+        .delete(appliedCollections)
+        .where(eq(appliedCollections.plexCollectionKey, collectionKey));
+
+      return NextResponse.json({
+        success: true,
+        message: "Collection deleted",
+      });
+    }
+  } catch (error) {
+    console.error("Error deleting collection:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to delete",
       },
       { status: 500 }
     );

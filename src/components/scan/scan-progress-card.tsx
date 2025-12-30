@@ -6,35 +6,56 @@ import { Film, Tv, Play, Square, Loader2, CheckCircle2, AlertCircle, RefreshCw }
 
 interface ScanProgressCardProps {
   onScanComplete?: (movies: number, shows: number, scanId: number) => void;
+  /** If provided, the card will show as complete with these results */
+  completedScan?: {
+    movies: number;
+    shows: number;
+    scanId: number;
+  } | null;
+  /** Called when user clicks "Scan Again" to reset parent state */
+  onReset?: () => void;
 }
 
-export function ScanProgressCard({ onScanComplete }: ScanProgressCardProps) {
+export function ScanProgressCard({ onScanComplete, completedScan, onReset }: ScanProgressCardProps) {
   const {
-    status,
+    status: hookStatus,
     progress,
-    movies,
-    shows,
-    scanId,
+    movies: hookMovies,
+    shows: hookShows,
+    scanId: hookScanId,
     error,
     startScan,
     cancelScan,
-    reset,
+    reset: hookReset,
   } = useLibraryScan();
+
+  // Use parent's completed scan if available and hook is idle
+  const isShowingCompletedScan = completedScan && hookStatus === "idle";
+  const status = isShowingCompletedScan ? "complete" : hookStatus;
+  const movies = isShowingCompletedScan ? Array(completedScan.movies).fill({}) : hookMovies;
+  const shows = isShowingCompletedScan ? Array(completedScan.shows).fill({}) : hookShows;
+  const scanId = isShowingCompletedScan ? completedScan.scanId : hookScanId;
+
+  const reset = () => {
+    hookReset();
+    onReset?.();
+  };
 
   // Track if we've already notified to prevent multiple calls
   const hasNotified = useRef(false);
 
-  // Notify parent when scan completes (in useEffect to avoid setState during render)
+  // Notify parent when scan completes via hook (not when showing parent's completed scan)
   useEffect(() => {
-    if (status === "complete" && onScanComplete && scanId && !hasNotified.current) {
+    // Only notify if the hook completed the scan (not showing parent's completed scan)
+    if (hookStatus === "complete" && onScanComplete && hookScanId && !hasNotified.current) {
       hasNotified.current = true;
-      onScanComplete(movies.length, shows.length, scanId);
+      onScanComplete(hookMovies.length, hookShows.length, hookScanId);
     }
     // Reset notification flag when status changes away from complete
-    if (status !== "complete") {
+    if (hookStatus !== "complete") {
       hasNotified.current = false;
     }
-  }, [status, scanId, movies.length, shows.length, onScanComplete]);
+  }, [hookStatus, hookScanId, hookMovies.length, hookShows.length, onScanComplete]);
 
   const progressPercent =
     progress?.totalItems && progress?.itemsFetched

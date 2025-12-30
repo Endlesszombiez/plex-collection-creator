@@ -53,12 +53,21 @@ export interface ExistingCollection {
 }
 
 /**
+ * Previously suggested collection info (from database).
+ */
+export interface PreviousSuggestion {
+  collectionName: string;
+  itemCount: number;
+}
+
+/**
  * User prompt for collection analysis.
  */
 export function createCollectionAnalysisPrompt(
   movies: PlexMediaItem[],
   shows: PlexMediaItem[],
-  existingCollections?: ExistingCollection[]
+  existingCollections?: ExistingCollection[],
+  previousSuggestions?: PreviousSuggestion[]
 ): string {
   const parts: string[] = [];
 
@@ -66,6 +75,12 @@ export function createCollectionAnalysisPrompt(
   if (existingCollections && existingCollections.length > 0) {
     const existingNames = existingCollections.map((c) => `- "${c.title}" (${c.childCount || 0} items)`).join("\n");
     parts.push(`## EXISTING PLEX COLLECTIONS (DO NOT DUPLICATE)\n${existingNames}`);
+  }
+
+  // Include previously suggested collections (from our app) to avoid re-suggesting
+  if (previousSuggestions && previousSuggestions.length > 0) {
+    const previousNames = previousSuggestions.map((s) => `- "${s.collectionName}" (${s.itemCount} items)`).join("\n");
+    parts.push(`## PREVIOUSLY SUGGESTED COLLECTIONS (DO NOT RE-SUGGEST)\nThese collections have already been suggested by previous analysis runs. Do not suggest these again:\n${previousNames}`);
   }
 
   if (movies.length > 0) {
@@ -79,6 +94,10 @@ export function createCollectionAnalysisPrompt(
   const existingWarning = existingCollections && existingCollections.length > 0
     ? `- Review existing collections above - if you find items that SHOULD be in one but aren't, suggest adding them (use exact same name)
 - For new collection ideas, make sure they're genuinely different from existing ones`
+    : "";
+
+  const previousWarning = previousSuggestions && previousSuggestions.length > 0
+    ? `- DO NOT re-suggest collections listed in "PREVIOUSLY SUGGESTED COLLECTIONS" - those have already been analyzed`
     : "";
 
   return `Analyze this media library and suggest collections.
@@ -101,7 +120,8 @@ Important:
 - Only include items that actually exist in the input
 - Create 5-15 collections depending on library size
 - Each collection needs at least 2 items
-${existingWarning}`;
+${existingWarning}
+${previousWarning}`;
 }
 
 /**
@@ -184,7 +204,8 @@ export function createCustomAnalysisPrompt(
   movies: PlexMediaItem[],
   shows: PlexMediaItem[],
   customPrompt: string,
-  existingCollections?: ExistingCollection[]
+  existingCollections?: ExistingCollection[],
+  previousSuggestions?: PreviousSuggestion[]
 ): string {
   const parts: string[] = [];
 
@@ -192,6 +213,12 @@ export function createCustomAnalysisPrompt(
   if (existingCollections && existingCollections.length > 0) {
     const existingNames = existingCollections.map((c) => `- "${c.title}" (${c.childCount || 0} items)`).join("\n");
     parts.push(`## EXISTING PLEX COLLECTIONS (DO NOT DUPLICATE)\n${existingNames}`);
+  }
+
+  // Include previously suggested collections (from our app) to avoid re-suggesting
+  if (previousSuggestions && previousSuggestions.length > 0) {
+    const previousNames = previousSuggestions.map((s) => `- "${s.collectionName}" (${s.itemCount} items)`).join("\n");
+    parts.push(`## PREVIOUSLY SUGGESTED COLLECTIONS (DO NOT RE-SUGGEST)\nThese collections have already been suggested by previous analysis runs. Do not suggest these again:\n${previousNames}`);
   }
 
   if (movies.length > 0) {
@@ -205,6 +232,10 @@ export function createCustomAnalysisPrompt(
   const existingWarning = existingCollections && existingCollections.length > 0
     ? `- Do NOT create collections with names similar to the existing collections listed above
 - If you want to suggest adding items to an existing collection, use the EXACT same name`
+    : "";
+
+  const previousWarning = previousSuggestions && previousSuggestions.length > 0
+    ? `- DO NOT re-suggest collections listed in "PREVIOUSLY SUGGESTED COLLECTIONS" - those have already been analyzed`
     : "";
 
   return `User's request: "${customPrompt}"
@@ -231,5 +262,6 @@ Important:
 - If the user's criteria results in multiple distinct groups, create separate collections
 - Each collection needs at least 2 items
 - If nothing matches exactly, include the closest matches and explain in the reasoning
-${existingWarning}`;
+${existingWarning}
+${previousWarning}`;
 }

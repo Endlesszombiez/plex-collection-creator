@@ -6,7 +6,7 @@ services:
     container_name: plex-collection-creator
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "32500:3000"
     volumes:
       # Persist SQLite database across container restarts
       - plex-collections-data:/app/data
