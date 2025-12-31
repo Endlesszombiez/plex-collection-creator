@@ -131,22 +131,29 @@ Cost-conscious design: The app uses smaller, faster models (like Claude Haiku) f
 
 ## Security & Privacy
 
-**Your credentials are safe:**
+**What stays local:**
 
-- **API keys are encrypted** using AES-256-GCM
-- **Encryption key is auto-generated** on first startup and stored in your Docker volume
-- **Nothing leaves your network** — the app runs entirely on your machine
-- **No telemetry or analytics** — we don't collect any data
-- **Open source** — you can inspect every line of code
+- Your Plex token is stored in the local database
+- The app runs on your machine — no data is sent to us
 
-Your AI provider only sees the movie titles and metadata needed to suggest collections. They don't receive your Plex credentials or any personal information.
+**What gets sent to your AI provider:**
 
-**Using environment variables (optional):**
+- Movie and TV metadata (titles, years, directors, genres, summaries)
+- This is required for the AI to analyze your library and suggest collections
 
-For advanced users who prefer not to enter credentials in the UI, you can pre-configure your AI provider via environment variables:
+Your Plex credentials are never sent to the AI provider.
+
+---
+
+## Credential Storage
+
+You need to provide an AI API key. There are two ways to do this:
+
+**Option 1: Environment variables**
+
+Create a `.env` file before starting the app:
 
 ```bash
-# Create .env file with your credentials
 # Anthropic
 echo "ANTHROPIC_API_KEY=sk-ant-..." > .env
 
@@ -160,21 +167,19 @@ AWS_SECRET_ACCESS_KEY=...
 AWS_REGION=us-east-1
 EOF
 
-# Then start the app
 docker compose up -d
 ```
 
-When credentials are provided via environment variables, they take priority and the UI will show "Configured via environment variable".
+The UI will show "Configured via environment variable" and won't store anything in the database.
 
-**Using your own encryption key (optional):**
+**Option 2: Enter in the UI**
 
-If you prefer to manage your own encryption key for database-stored credentials:
+Enter your API key through the setup wizard. It gets encrypted (AES-256-GCM) and stored in the local SQLite database. The encryption key is auto-generated on first startup and stored in the Docker volume.
+
+If you prefer to manage your own encryption key:
 
 ```bash
-# Generate a secure key and create .env file
 echo "ENCRYPTION_KEY=$(openssl rand -hex 32)" > .env
-
-# Then start the app
 docker compose up -d
 ```
 
@@ -190,9 +195,6 @@ Yes. Collections can be deleted from Plex at any time.
 
 **Q: Does it work with TV shows?**
 Yes! It finds series, spinoffs, and shared-universe shows.
-
-**Q: My Plex server isn't found. What do I do?**
-Make sure your Plex server is on the same network as Docker. Try using the server's IP address directly instead of the hostname.
 
 **Q: How do I stop the app?**
 Run `docker compose down` in the terminal. Your data is preserved.
