@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db, settings, suggestions, appliedCollections } from "@/lib/db";
 import { getCurrentServerUrl } from "@/lib/plex/client";
-import { eq, inArray } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
 

@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ScanProgressCard } from "@/components/scan/scan-progress-card";
 import { AIAnalysisCard } from "@/components/ai/ai-analysis-card";
 import { CustomPromptCard } from "@/components/ai/custom-prompt-card";
@@ -18,8 +18,11 @@ import { Plus, ListChecks, FolderOpen, Settings, Lock, Sparkles, Wand2 } from "l
 type TabType = 'create' | 'suggestions' | 'collections' | 'settings';
 type SearchType = 'default' | 'custom';
 
-export default function DashboardPage() {
+// Wrapper component that uses useSearchParams (requires Suspense)
+function DashboardContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const autoStart = searchParams.get('autoStart') === 'true';
   const { hasSavedSelection, isLoading: librariesLoading, refresh: refreshLibraries } = useSavedLibraries();
   const { configured: aiConfigured, isLoading: aiLoading, refreshConfig: refreshAIConfig } = useAIConfig();
   const { status: plexStatus, refreshStatus: refreshPlexStatus } = usePlexAuth();
@@ -49,6 +52,16 @@ export default function DashboardPage() {
     setScanComplete(true);
     setScanResults({ movies, shows, scanId });
   };
+
+  // Clear the URL param after consuming it (prevents re-run on refresh)
+  useEffect(() => {
+    if (autoStart && typeof window !== 'undefined') {
+      // Replace URL without the autoStart param
+      const url = new URL(window.location.href);
+      url.searchParams.delete('autoStart');
+      window.history.replaceState({}, '', url.pathname);
+    }
+  }, [autoStart]);
 
   const handleScanReset = () => {
     setScanComplete(false);
@@ -194,6 +207,7 @@ export default function DashboardPage() {
                   onScanComplete={handleScanComplete}
                   completedScan={scanResults}
                   onReset={handleScanReset}
+                  autoStart={autoStart}
                 />
               </div>
 
@@ -259,6 +273,7 @@ export default function DashboardPage() {
                           showCount={scanResults.shows}
                           embedded
                           onReviewSuggestions={() => setActiveTab('suggestions')}
+                          autoStart={autoStart}
                         />
                       ) : (
                         <CustomPromptCard
@@ -328,5 +343,18 @@ export default function DashboardPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+// Default export with Suspense wrapper for useSearchParams
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#1a1a1a] flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-[#E5A00D] border-t-transparent" />
+      </div>
+    }>
+      <DashboardContent />
+    </Suspense>
   );
 }

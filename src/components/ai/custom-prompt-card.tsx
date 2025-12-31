@@ -113,6 +113,44 @@ export function CustomPromptCard({ scanId, movieCount, showCount, embedded = fal
     }
   };
 
+  // Shared JSX elements to avoid duplication
+  const generateButton = (
+    <button
+      onClick={handleStartAnalysis}
+      disabled={!customPrompt.trim()}
+      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-purple-500 text-white font-medium text-sm hover:bg-purple-500/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+    >
+      <Sparkles className="h-4 w-4" />
+      Generate Suggestions
+    </button>
+  );
+
+  const examplesSection = (
+    <div>
+      <button
+        onClick={() => setShowExamples(!showExamples)}
+        className="flex items-center gap-1.5 text-xs text-purple-400 hover:text-purple-300 transition-colors"
+      >
+        {showExamples ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+        {showExamples ? "Hide examples" : "Show examples"}
+      </button>
+      {showExamples && (
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          {EXAMPLE_PROMPTS.map((example) => (
+            <button
+              key={example.title}
+              onClick={() => handleExampleClick(example.prompt)}
+              className="text-left p-3 rounded-lg bg-white/5 hover:bg-white/10 border border-white/5 hover:border-purple-500/30 transition-colors"
+            >
+              <p className="text-sm font-medium text-white mb-1">{example.title}</p>
+              <p className="text-xs text-white/40 line-clamp-2">{example.prompt}</p>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div className={wrapperClass}>
       <div className={innerClass}>
@@ -180,41 +218,8 @@ export function CustomPromptCard({ scanId, movieCount, showCount, embedded = fal
             }
             movieCount={movieCount}
             showCount={showCount}
-            actionButton={
-              <button
-                onClick={handleStartAnalysis}
-                disabled={!customPrompt.trim()}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-purple-500 text-white font-medium text-sm hover:bg-purple-500/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Sparkles className="h-4 w-4" />
-                Generate Suggestions
-              </button>
-            }
-            expandableContent={
-              <div>
-                <button
-                  onClick={() => setShowExamples(!showExamples)}
-                  className="flex items-center gap-1.5 text-xs text-purple-400 hover:text-purple-300 transition-colors"
-                >
-                  {showExamples ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-                  {showExamples ? "Hide examples" : "Show examples"}
-                </button>
-                {showExamples && (
-                  <div className="mt-3 grid grid-cols-2 gap-2">
-                    {EXAMPLE_PROMPTS.map((example) => (
-                      <button
-                        key={example.title}
-                        onClick={() => handleExampleClick(example.prompt)}
-                        className="text-left p-3 rounded-lg bg-white/5 hover:bg-white/10 border border-white/5 hover:border-purple-500/30 transition-colors"
-                      >
-                        <p className="text-sm font-medium text-white mb-1">{example.title}</p>
-                        <p className="text-xs text-white/40 line-clamp-2">{example.prompt}</p>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            }
+            actionButton={generateButton}
+            expandableContent={examplesSection}
           >
             <textarea
               id="custom-prompt"
@@ -328,40 +333,9 @@ export function CustomPromptCard({ scanId, movieCount, showCount, embedded = fal
           {status === "idle" && (
             <div className="flex flex-col w-full gap-3">
               <div className="flex justify-end">
-                <button
-                  onClick={handleStartAnalysis}
-                  disabled={!customPrompt.trim()}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-purple-500 text-white font-medium text-sm hover:bg-purple-500/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Sparkles className="h-4 w-4" />
-                  Generate Suggestions
-                </button>
+                {generateButton}
               </div>
-
-              {/* Example prompts toggle */}
-              <div>
-                <button
-                  onClick={() => setShowExamples(!showExamples)}
-                  className="flex items-center gap-1.5 text-xs text-purple-400 hover:text-purple-300 transition-colors"
-                >
-                  {showExamples ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-                  {showExamples ? "Hide examples" : "Show examples"}
-                </button>
-                {showExamples && (
-                  <div className="mt-3 grid grid-cols-2 gap-2">
-                    {EXAMPLE_PROMPTS.map((example) => (
-                      <button
-                        key={example.title}
-                        onClick={() => handleExampleClick(example.prompt)}
-                        className="text-left p-3 rounded-lg bg-white/5 hover:bg-white/10 border border-white/5 hover:border-purple-500/30 transition-colors"
-                      >
-                        <p className="text-sm font-medium text-white mb-1">{example.title}</p>
-                        <p className="text-xs text-white/40 line-clamp-2">{example.prompt}</p>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
+              {examplesSection}
             </div>
           )}
         {status === "analyzing" && (

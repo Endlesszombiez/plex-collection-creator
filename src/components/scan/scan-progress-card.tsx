@@ -14,9 +14,11 @@ interface ScanProgressCardProps {
   } | null;
   /** Called when user clicks "Scan Again" to reset parent state */
   onReset?: () => void;
+  /** If true, auto-start scan on mount */
+  autoStart?: boolean;
 }
 
-export function ScanProgressCard({ onScanComplete, completedScan, onReset }: ScanProgressCardProps) {
+export function ScanProgressCard({ onScanComplete, completedScan, onReset, autoStart }: ScanProgressCardProps) {
   const {
     status: hookStatus,
     progress,
@@ -34,7 +36,6 @@ export function ScanProgressCard({ onScanComplete, completedScan, onReset }: Sca
   const status = isShowingCompletedScan ? "complete" : hookStatus;
   const movies = isShowingCompletedScan ? Array(completedScan.movies).fill({}) : hookMovies;
   const shows = isShowingCompletedScan ? Array(completedScan.shows).fill({}) : hookShows;
-  const scanId = isShowingCompletedScan ? completedScan.scanId : hookScanId;
 
   const reset = () => {
     hookReset();
@@ -43,6 +44,16 @@ export function ScanProgressCard({ onScanComplete, completedScan, onReset }: Sca
 
   // Track if we've already notified to prevent multiple calls
   const hasNotified = useRef(false);
+  // Track if we've already auto-started
+  const hasAutoStarted = useRef(false);
+
+  // Auto-start scan if requested
+  useEffect(() => {
+    if (autoStart && hookStatus === "idle" && !completedScan && !hasAutoStarted.current) {
+      hasAutoStarted.current = true;
+      startScan();
+    }
+  }, [autoStart, hookStatus, completedScan, startScan]);
 
   // Notify parent when scan completes via hook (not when showing parent's completed scan)
   useEffect(() => {

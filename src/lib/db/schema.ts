@@ -64,6 +64,19 @@ export const appliedCollections = sqliteTable("applied_collections", {
   ),
 });
 
+// Movie embeddings table - caches vector embeddings for clustering
+export const movieEmbeddings = sqliteTable("movie_embeddings", {
+  movieId: text("movie_id").primaryKey(), // Plex ratingKey
+  titleEmbedding: text("title_embedding"), // JSON array of 384 floats
+  summaryEmbedding: text("summary_embedding"), // JSON array of 384 floats
+  creatorEmbedding: text("creator_embedding"), // JSON array of 384 floats
+  metadataHash: text("metadata_hash"), // Hash to detect changes
+  modelVersion: text("model_version"), // Track model version for invalidation
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(
+    () => new Date()
+  ),
+});
+
 // Type exports for use in application code
 export type Settings = typeof settings.$inferSelect;
 export type NewSettings = typeof settings.$inferInsert;
@@ -76,3 +89,6 @@ export type NewSuggestion = typeof suggestions.$inferInsert;
 
 export type AppliedCollection = typeof appliedCollections.$inferSelect;
 export type NewAppliedCollection = typeof appliedCollections.$inferInsert;
+
+export type MovieEmbedding = typeof movieEmbeddings.$inferSelect;
+export type NewMovieEmbedding = typeof movieEmbeddings.$inferInsert;

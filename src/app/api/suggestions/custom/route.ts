@@ -3,13 +3,11 @@ import { getLibraryItems, PlexMediaItem, getExistingCollections, getCollectionIt
 import { getPlexToken } from "@/lib/plex/auth";
 import { getConfiguredAIModel, getFastAIModel } from "@/lib/ai/provider";
 import {
-  // Two-call architecture for custom search
   CUSTOM_AUDIT_SYSTEM_PROMPT,
   createCustomAuditPrompt,
   parseAuditResponse,
   CUSTOM_NEW_COLLECTIONS_SYSTEM_PROMPT,
   createCustomNewCollectionsPrompt,
-  // Shared utilities
   parseAIResponse,
   validateCollections,
   PreviousSuggestion,
@@ -17,13 +15,14 @@ import {
   DEDUPLICATION_SYSTEM_PROMPT,
   createDeduplicationPrompt,
   parseDeduplicationResponse,
-  // Validation
   VALIDATION_SYSTEM_PROMPT,
   createValidationPrompt,
   parseValidationResponse,
 } from "@/lib/ai/prompts";
+import { EnrichedItem, buildMediaLookup } from "@/lib/suggestion-utils";
 import { generateText } from "ai";
 import { eq, desc, inArray, and } from "drizzle-orm";
+import { embeddingQueryService, MovieForEmbedding } from "@/lib/embeddings/embedding-service";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120; // Allow up to 2 minutes for AI analysis
@@ -43,26 +42,6 @@ interface AnalysisProgress {
   suggestionsCount?: number;
   suggestionIds?: number[];
   error?: string;
-}
-
-/**
- * Enriched item with title and year for display.
- */
-interface EnrichedItem {
-  ratingKey: string;
-  title: string;
-  year?: number;
-}
-
-/**
- * Build a lookup map from rating keys to media info.
- */
-function buildMediaLookup(items: PlexMediaItem[]): Map<string, { title: string; year?: number }> {
-  const lookup = new Map<string, { title: string; year?: number }>();
-  for (const item of items) {
-    lookup.set(item.ratingKey, { title: item.title, year: item.year });
-  }
-  return lookup;
 }
 
 /**
@@ -287,6 +266,69 @@ export async function GET(request: Request) {
         const allLibraryItems = [...allMovies, ...allShows];
 
         // =====================================================================
+        // SEMANTIC PRE-FILTERING WITH EMBEDDINGS
+        // =====================================================================
+        // Use embeddings to find semantically similar items first, then only
+        // send those candidates to the AI. This dramatically reduces token usage.
+
+        send({
+          type: "progress",
+          phase: "analyzing",
+          message: "Finding semantically similar items...",
+          totalItems,
+        });
+
+        // Convert to embedding format (movies only for now - embeddings work on metadata)
+        const moviesForEmbedding: MovieForEmbedding[] = allMovies.map((item) => ({
+          ratingKey: item.ratingKey,
+          title: item.title,
+          year: item.year,
+          genres: item.genres,
+          summary: item.summary,
+          directors: item.directors,
+          actors: item.actors,
+          studio: item.studio,
+        }));
+
+        // Find top candidates using semantic search
+        // Use higher topK for custom search to ensure good coverage
+        let candidateItems = allLibraryItems;
+
+        if (moviesForEmbedding.length > 0) {
+          try {
+            const similarMovies = await embeddingQueryService.findSimilar(
+              customPrompt,
+              moviesForEmbedding,
+              150, // top 150 candidates
+              0.25 // lower threshold for broader coverage
+            );
+
+            if (similarMovies.length > 0) {
+              const candidateKeys = new Set(similarMovies.map((m) => m.ratingKey));
+
+              // Filter to only candidate items for AI processing
+              // Always include shows since we don't have embeddings for them yet
+              candidateItems = allLibraryItems.filter(
+                (item) => candidateKeys.has(item.ratingKey) || !allMovies.includes(item)
+              );
+
+              console.log(
+                `Semantic search: ${similarMovies.length} candidates from ${allMovies.length} movies (threshold 0.25)`
+              );
+              console.log(
+                `Top 5 matches: ${similarMovies.slice(0, 5).map((m) => {
+                  const movie = allMovies.find((i) => i.ratingKey === m.ratingKey);
+                  return `${movie?.title} (${m.similarity.toFixed(3)})`;
+                }).join(", ")}`
+              );
+            }
+          } catch (err) {
+            // If embedding search fails, fall back to all items
+            console.error("Semantic search failed, using all items:", err);
+          }
+        }
+
+        // =====================================================================
         // TWO-CALL ARCHITECTURE FOR CUSTOM SEARCH
         // =====================================================================
 
@@ -295,12 +337,13 @@ export async function GET(request: Request) {
           type: "progress",
           phase: "analyzing",
           message: `Checking existing collections for items matching "${customPrompt.slice(0, 30)}${customPrompt.length > 30 ? "..." : ""}"...`,
-          totalItems,
+          totalItems: candidateItems.length,
         });
 
         let auditResults: ParsedCollection[] = [];
         if (collectionsWithItems.length > 0) {
-          const auditPrompt = createCustomAuditPrompt(collectionsWithItems, allLibraryItems, customPrompt);
+          // Use candidateItems for more focused AI analysis
+          const auditPrompt = createCustomAuditPrompt(collectionsWithItems, candidateItems, customPrompt);
           const { text: auditResponse } = await generateText({
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             model: model as any,
@@ -314,12 +357,13 @@ export async function GET(request: Request) {
         send({
           type: "progress",
           phase: "analyzing",
-          message: `Searching ${allMovies.length} movies and ${allShows.length} TV shows...`,
-          totalItems,
+          message: `Analyzing ${candidateItems.length} candidate items...`,
+          totalItems: candidateItems.length,
         });
 
+        // Use candidateItems for focused AI analysis (pre-filtered by semantic search)
         const newCollectionsPrompt = createCustomNewCollectionsPrompt(
-          allLibraryItems,
+          candidateItems,
           customPrompt,
           existingCollections.map((c) => c.title),
           previousSuggestions

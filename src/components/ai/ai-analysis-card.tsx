@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { useAIAnalysis } from "@/hooks/use-ai-analysis";
 import { Sparkles, Loader2, CheckCircle2, AlertCircle, RefreshCw, ArrowRight, Square } from "lucide-react";
 import Link from "next/link";
@@ -13,9 +14,11 @@ interface AIAnalysisCardProps {
   embedded?: boolean;
   /** Callback when user wants to review suggestions (instead of navigating to /suggestions) */
   onReviewSuggestions?: () => void;
+  /** If true, auto-start analysis on mount */
+  autoStart?: boolean;
 }
 
-export function AIAnalysisCard({ scanId, movieCount, showCount, embedded = false, onReviewSuggestions }: AIAnalysisCardProps) {
+export function AIAnalysisCard({ scanId, movieCount, showCount, embedded = false, onReviewSuggestions, autoStart }: AIAnalysisCardProps) {
   const {
     status,
     progress,
@@ -25,6 +28,17 @@ export function AIAnalysisCard({ scanId, movieCount, showCount, embedded = false
     cancelAnalysis,
     reset,
   } = useAIAnalysis();
+
+  // Track if we've already auto-started
+  const hasAutoStarted = useRef(false);
+
+  // Auto-start analysis if requested
+  useEffect(() => {
+    if (autoStart && status === "idle" && scanId && !hasAutoStarted.current) {
+      hasAutoStarted.current = true;
+      startAnalysis(scanId);
+    }
+  }, [autoStart, status, scanId, startAnalysis]);
 
   const totalItems = movieCount + showCount;
 

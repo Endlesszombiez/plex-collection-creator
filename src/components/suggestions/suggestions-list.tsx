@@ -9,7 +9,6 @@ import {
   Loader2,
   Sparkles,
   CheckCircle2,
-  XCircle,
   Upload,
   Film,
   ChevronDown,

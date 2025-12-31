@@ -249,7 +249,7 @@ export default function SetupPage() {
                       </div>
                     </div>
                     <Link
-                      href="/dashboard"
+                      href="/dashboard?autoStart=true"
                       className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-[#E5A00D] text-black font-semibold hover:bg-[#E5A00D]/90 transition-colors"
                     >
                       Continue to Dashboard

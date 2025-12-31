@@ -2,6 +2,7 @@ import { db, settings, scans } from "@/lib/db";
 import { getLibraryItems, PlexMediaItem } from "@/lib/plex/client";
 import { getPlexToken } from "@/lib/plex/auth";
 import { eq } from "drizzle-orm";
+import { embeddingService, MovieForEmbedding, EmbeddingType } from "@/lib/embeddings/embedding-service";
 
 export const dynamic = "force-dynamic";
 
@@ -166,6 +167,38 @@ export async function GET() {
           totalShows: allShows.length,
           message: `Scan complete: ${allMovies.length} movies, ${allShows.length} shows`,
         });
+
+        // Fire-and-forget: Pre-compute embeddings in background
+        // This runs while user reviews scan results, so generation is faster
+        if (allMovies.length > 0) {
+          (async () => {
+            try {
+              console.log(`Starting background embedding pre-computation for ${allMovies.length} movies...`);
+
+              // Convert PlexMediaItem[] to MovieForEmbedding[]
+              const moviesForEmbedding: MovieForEmbedding[] = allMovies.map(item => ({
+                ratingKey: item.ratingKey,
+                title: item.title,
+                year: item.year,
+                genres: item.genres,
+                summary: item.summary,
+                directors: item.directors,
+                actors: item.actors,
+                studio: item.studio,
+              }));
+
+              // Pre-compute all three embedding types
+              const types: EmbeddingType[] = ["title", "summary", "creator"];
+              for (const type of types) {
+                embeddingService.getEmbeddings(moviesForEmbedding, type)
+                  .then(() => console.log(`Background embeddings complete: ${type}`))
+                  .catch(err => console.error(`Background embedding error (${type}):`, err));
+              }
+            } catch (err) {
+              console.error("Failed to start background embeddings:", err);
+            }
+          })();
+        }
 
         controller.close();
       } catch (error) {
