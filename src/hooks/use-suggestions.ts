@@ -41,6 +41,9 @@ interface UseSuggestionsReturn {
   remove: (id: number) => Promise<void>;
   approveAll: () => Promise<void>;
   rejectAll: () => Promise<void>;
+  restoreAll: () => Promise<void>;
+  deleteAll: () => Promise<void>;
+  markApplied: (id: number) => void;
 }
 
 export function useSuggestions(statusFilter?: string): UseSuggestionsReturn {
@@ -126,19 +129,91 @@ export function useSuggestions(statusFilter?: string): UseSuggestionsReturn {
     }
   }, []);
 
+  // Bulk operations with optimistic UI updates (single state change, then background sync)
   const approveAll = useCallback(async () => {
-    const pending = suggestions.filter((s) => s.status === "pending");
-    for (const suggestion of pending) {
-      await updateStatus(suggestion.id, "approved");
-    }
-  }, [suggestions, updateStatus]);
+    const pendingIds = suggestions.filter((s) => s.status === "pending").map((s) => s.id);
+    if (pendingIds.length === 0) return;
+
+    // Optimistic update - single state change
+    setSuggestions((prev) =>
+      prev.map((s) => (pendingIds.includes(s.id) ? { ...s, status: "approved" as const } : s))
+    );
+
+    // Background sync with API
+    await Promise.all(
+      pendingIds.map((id) =>
+        fetch("/api/suggestions", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id, status: "approved" }),
+        }).catch(console.error)
+      )
+    );
+  }, [suggestions]);
 
   const rejectAll = useCallback(async () => {
-    const pending = suggestions.filter((s) => s.status === "pending");
-    for (const suggestion of pending) {
-      await updateStatus(suggestion.id, "rejected");
-    }
-  }, [suggestions, updateStatus]);
+    const pendingIds = suggestions.filter((s) => s.status === "pending").map((s) => s.id);
+    if (pendingIds.length === 0) return;
+
+    // Optimistic update - single state change
+    setSuggestions((prev) =>
+      prev.map((s) => (pendingIds.includes(s.id) ? { ...s, status: "rejected" as const } : s))
+    );
+
+    // Background sync with API
+    await Promise.all(
+      pendingIds.map((id) =>
+        fetch("/api/suggestions", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id, status: "rejected" }),
+        }).catch(console.error)
+      )
+    );
+  }, [suggestions]);
+
+  const restoreAll = useCallback(async () => {
+    const rejectedIds = suggestions.filter((s) => s.status === "rejected").map((s) => s.id);
+    if (rejectedIds.length === 0) return;
+
+    // Optimistic update - single state change
+    setSuggestions((prev) =>
+      prev.map((s) => (rejectedIds.includes(s.id) ? { ...s, status: "pending" as const } : s))
+    );
+
+    // Background sync with API
+    await Promise.all(
+      rejectedIds.map((id) =>
+        fetch("/api/suggestions", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id, status: "pending" }),
+        }).catch(console.error)
+      )
+    );
+  }, [suggestions]);
+
+  const deleteAll = useCallback(async () => {
+    const rejectedIds = suggestions.filter((s) => s.status === "rejected").map((s) => s.id);
+    if (rejectedIds.length === 0) return;
+
+    // Optimistic update - single state change
+    setSuggestions((prev) => prev.filter((s) => !rejectedIds.includes(s.id)));
+
+    // Background sync with API
+    await Promise.all(
+      rejectedIds.map((id) =>
+        fetch(`/api/suggestions?id=${id}`, { method: "DELETE" }).catch(console.error)
+      )
+    );
+  }, [suggestions]);
+
+  // Optimistically mark a suggestion as applied (no API call, just local state)
+  const markApplied = useCallback((id: number) => {
+    setSuggestions((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, status: "applied" as const } : s))
+    );
+  }, []);
 
   // Load on mount
   useEffect(() => {
@@ -155,5 +230,8 @@ export function useSuggestions(statusFilter?: string): UseSuggestionsReturn {
     remove,
     approveAll,
     rejectAll,
+    restoreAll,
+    deleteAll,
+    markApplied,
   };
 }

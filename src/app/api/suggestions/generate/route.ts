@@ -1,16 +1,26 @@
 import { db, settings, scans, suggestions } from "@/lib/db";
-import { getLibraryItems, PlexMediaItem, getExistingCollections, PlexCollection } from "@/lib/plex/client";
+import { getLibraryItems, PlexMediaItem, getExistingCollections, getCollectionItems, PlexCollection } from "@/lib/plex/client";
 import { getPlexToken } from "@/lib/plex/auth";
 import { getConfiguredAIModel, getFastAIModel } from "@/lib/ai/provider";
 import {
-  COLLECTION_ANALYSIS_SYSTEM_PROMPT,
-  createCollectionAnalysisPrompt,
+  // Two-call architecture imports
+  AUDIT_SYSTEM_PROMPT,
+  createAuditPrompt,
+  parseAuditResponse,
+  NEW_COLLECTIONS_SYSTEM_PROMPT,
+  createNewCollectionsPrompt,
+  // Shared utilities
   parseAIResponse,
   validateCollections,
   PreviousSuggestion,
+  ParsedCollection,
   DEDUPLICATION_SYSTEM_PROMPT,
   createDeduplicationPrompt,
   parseDeduplicationResponse,
+  // Validation
+  VALIDATION_SYSTEM_PROMPT,
+  createValidationPrompt,
+  parseValidationResponse,
 } from "@/lib/ai/prompts";
 import { generateText } from "ai";
 import { eq, desc, inArray, and } from "drizzle-orm";
@@ -213,6 +223,20 @@ export async function GET(request: Request) {
           return true;
         });
 
+        // Fetch items for each existing collection so AI can suggest additions
+        send({
+          type: "progress",
+          phase: "loading",
+          message: `Fetching contents of ${existingCollections.length} collections...`,
+        });
+
+        const collectionsWithItems = await Promise.all(
+          existingCollections.map(async (collection) => {
+            const items = await getCollectionItems(plexServerUrl, token, collection.ratingKey);
+            return { ...collection, items };
+          })
+        );
+
         // Fetch previously suggested collections to avoid re-suggesting them
         // 1. Current scan's pending/approved (don't duplicate what's already in queue)
         const currentScanSuggestions = await db
@@ -252,22 +276,61 @@ export async function GET(request: Request) {
           }
         }
 
+        const allLibraryItems = [...allMovies, ...allShows];
+
+        // =====================================================================
+        // TWO-CALL ARCHITECTURE
+        // =====================================================================
+
+        // CALL 1: Audit existing collections for missing items
         send({
           type: "progress",
           phase: "analyzing",
-          message: `Analyzing ${allMovies.length} movies and ${allShows.length} TV shows (${existingCollections.length} existing collections${previousSuggestions.length > 0 ? `, ${previousSuggestions.length} previously suggested` : ""})...`,
+          message: `Auditing ${existingCollections.length} existing collections for missing items...`,
           totalItems,
         });
 
-        // Create prompt with existing collections and previous suggestions context
-        const prompt = createCollectionAnalysisPrompt(allMovies, allShows, existingCollections, previousSuggestions);
+        let auditResults: ParsedCollection[] = [];
+        if (collectionsWithItems.length > 0) {
+          const auditPrompt = createAuditPrompt(collectionsWithItems, allLibraryItems);
+          const { text: auditResponse } = await generateText({
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            model: model as any,
+            system: AUDIT_SYSTEM_PROMPT,
+            prompt: auditPrompt,
+          });
+          auditResults = parseAuditResponse(auditResponse);
 
-        const { text: aiResponse } = await generateText({
+          // Show audit results to user
+          if (auditResults.length > 0) {
+            send({
+              type: "progress",
+              phase: "analyzing",
+              message: `Found ${auditResults.length} existing collections with missing items`,
+            });
+          }
+        }
+
+        // CALL 2: Suggest new collections
+        send({
+          type: "progress",
+          phase: "analyzing",
+          message: `Generating new collection ideas for ${allMovies.length} movies and ${allShows.length} TV shows...`,
+          totalItems,
+        });
+
+        const newCollectionsPrompt = createNewCollectionsPrompt(
+          allLibraryItems,
+          existingCollections.map((c) => c.title),
+          previousSuggestions
+        );
+        const { text: newCollectionsResponse } = await generateText({
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           model: model as any,
-          system: COLLECTION_ANALYSIS_SYSTEM_PROMPT,
-          prompt,
+          system: NEW_COLLECTIONS_SYSTEM_PROMPT,
+          prompt: newCollectionsPrompt,
         });
+        const newResults = parseAIResponse(newCollectionsResponse);
 
         send({
           type: "progress",
@@ -275,17 +338,40 @@ export async function GET(request: Request) {
           message: "Processing AI suggestions...",
         });
 
-        // Parse and validate response
-        const parsedCollections = parseAIResponse(aiResponse);
-
         // Build set of valid rating keys
         const validKeys = new Set<string>();
-        [...allMovies, ...allShows].forEach((item) => validKeys.add(item.ratingKey));
+        allLibraryItems.forEach((item) => validKeys.add(item.ratingKey));
 
-        let validatedCollections = validateCollections(parsedCollections, validKeys);
+        // Build lookup: collection name -> Set of rating keys already in it
+        // This allows us to programmatically filter out items the AI suggests
+        // that are already in the collection (AI sometimes misses this)
+        const collectionItemKeys = new Map<string, Set<string>>();
+        for (const collection of collectionsWithItems) {
+          const keys = new Set(collection.items?.map((i) => i.ratingKey) || []);
+          collectionItemKeys.set(collection.title.toLowerCase().trim(), keys);
+        }
 
-        // Use AI to detect semantic duplicates (e.g., "MCU" = "Marvel Cinematic Universe")
-        if (validatedCollections.length > 0 && existingCollections.length > 0) {
+        // Validate audit results, filtering out items ALREADY in the collection
+        // This ensures we only suggest genuinely missing items
+        const validatedAuditResults = auditResults
+          .map((collection) => {
+            const existingKeys =
+              collectionItemKeys.get(collection.name.toLowerCase().trim()) || new Set<string>();
+            return {
+              ...collection,
+              items: collection.items.filter(
+                (key) => validKeys.has(key) && !existingKeys.has(key)
+              ),
+            };
+          })
+          .filter((collection) => collection.items.length >= 1);
+
+        // Validate new collection results (2+ items required for new collections)
+        let validatedNewResults = validateCollections(newResults, validKeys);
+
+        // Use AI to detect semantic duplicates ONLY for new collections (not audit additions)
+        // Audit additions SHOULD match existing collection names - that's intentional
+        if (validatedNewResults.length > 0 && existingCollections.length > 0) {
           send({
             type: "progress",
             phase: "saving",
@@ -296,7 +382,7 @@ export async function GET(request: Request) {
           if (fastModel) {
             const dedupePrompt = createDeduplicationPrompt(
               existingCollections.map((c) => ({ title: c.title, childCount: c.childCount || 0 })),
-              validatedCollections.map((c) => ({ name: c.name, itemCount: c.items.length }))
+              validatedNewResults.map((c) => ({ name: c.name, itemCount: c.items.length }))
             );
 
             try {
@@ -312,13 +398,13 @@ export async function GET(request: Request) {
                 const duplicateNames = new Set(
                   duplicates.map((d) => d.suggested.toLowerCase().trim())
                 );
-                const beforeCount = validatedCollections.length;
-                validatedCollections = validatedCollections.filter(
+                const beforeCount = validatedNewResults.length;
+                validatedNewResults = validatedNewResults.filter(
                   (c) => !duplicateNames.has(c.name.toLowerCase().trim())
                 );
-                const filteredCount = beforeCount - validatedCollections.length;
+                const filteredCount = beforeCount - validatedNewResults.length;
                 if (filteredCount > 0) {
-                  console.log(`Filtered ${filteredCount} duplicate suggestions:`, duplicates);
+                  console.log(`Filtered ${filteredCount} duplicate new suggestions:`, duplicates);
                 }
               }
             } catch (error) {
@@ -328,16 +414,103 @@ export async function GET(request: Request) {
           }
         }
 
+        // Merge: audit results (additions to existing) + deduped new collections
+        let validatedCollections = [...validatedAuditResults, ...validatedNewResults];
+
+        // =====================================================================
+        // VALIDATION STEP: Verify each item belongs in its collection
+        // =====================================================================
+        if (validatedCollections.length > 0) {
+          send({
+            type: "progress",
+            phase: "saving",
+            message: `Validating ${validatedCollections.length} collection suggestions...`,
+          });
+
+          const fastModel = await getFastAIModel();
+          if (fastModel) {
+            const finalCollections: ParsedCollection[] = [];
+
+            for (const collection of validatedCollections) {
+              // Get full item details for validation
+              const itemDetails = collection.items.map((key) => {
+                const item = allLibraryItems.find((i) => i.ratingKey === key);
+                return {
+                  ratingKey: key,
+                  title: item?.title || "Unknown",
+                  year: item?.year,
+                  summary: item?.summary,
+                };
+              });
+
+              // Skip validation for very small collections (trust AI judgment)
+              if (collection.items.length <= 2) {
+                finalCollections.push(collection);
+                continue;
+              }
+
+              try {
+                // Validate items belong in collection
+                const validationPrompt = createValidationPrompt(
+                  collection.name,
+                  collection.reasoning || "",
+                  itemDetails
+                );
+
+                const { text: validationResponse } = await generateText({
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  model: fastModel as any,
+                  system: VALIDATION_SYSTEM_PROMPT,
+                  prompt: validationPrompt,
+                });
+
+                const validKeys = parseValidationResponse(validationResponse);
+
+                // Filter to only validated items
+                const validatedItems = collection.items.filter((key) =>
+                  validKeys.has(key)
+                );
+
+                // Keep collection if it still has enough items (2+ for new, 1+ for audit)
+                const isAuditAddition = validatedAuditResults.some(
+                  (a) => a.name === collection.name
+                );
+                const minItems = isAuditAddition ? 1 : 2;
+
+                if (validatedItems.length >= minItems) {
+                  finalCollections.push({
+                    ...collection,
+                    items: validatedItems,
+                  });
+                  console.log(
+                    `Validation: "${collection.name}" kept ${validatedItems.length}/${collection.items.length} items`
+                  );
+                } else {
+                  console.log(
+                    `Validation: "${collection.name}" filtered out (${validatedItems.length}/${collection.items.length} items passed)`
+                  );
+                }
+              } catch (error) {
+                // If validation fails, keep the collection as-is
+                console.error(`Validation failed for "${collection.name}":`, error);
+                finalCollections.push(collection);
+              }
+            }
+
+            validatedCollections = finalCollections;
+          }
+        }
+
         if (validatedCollections.length === 0) {
           // Provide context-aware message instead of generic error
           const hasExisting = existingCollections.length > 0;
-          const aiReturnedSome = parsedCollections.length > 0;
+          const aiReturnedSome = (auditResults.length + newResults.length) > 0;
 
           let message: string;
           if (hasExisting && !aiReturnedSome) {
             message = `No new collections found. You already have ${existingCollections.length} collections in Plex. Try a custom search for specific themes.`;
           } else if (aiReturnedSome) {
-            message = "AI suggested collections, but none had enough valid items (minimum 2 required).";
+            message = "AI suggested collections, but none had enough valid items (minimum 2 required for new collections, 1 for additions).";
           } else {
             message = "AI couldn't identify meaningful collection patterns in your library.";
           }

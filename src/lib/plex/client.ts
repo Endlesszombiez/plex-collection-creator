@@ -387,3 +387,44 @@ export async function getExistingCollections(
     childCount: c.childCount,
   }));
 }
+
+/**
+ * Item in a Plex collection.
+ */
+export interface CollectionItem {
+  ratingKey: string;
+  title: string;
+  year?: number;
+}
+
+/**
+ * Fetch items in a specific collection.
+ */
+export async function getCollectionItems(
+  serverUri: string,
+  accessToken: string,
+  collectionKey: string
+): Promise<CollectionItem[]> {
+  const url = `${serverUri}/library/collections/${collectionKey}/children`;
+
+  const response = await fetch(url, {
+    headers: {
+      Accept: "application/json",
+      "X-Plex-Token": accessToken,
+    },
+  });
+
+  if (!response.ok) {
+    console.error("Failed to fetch collection items:", response.statusText);
+    return [];
+  }
+
+  const data = await response.json();
+  const items = data.MediaContainer?.Metadata || [];
+
+  return items.map((item: { ratingKey: string; title: string; year?: number }) => ({
+    ratingKey: item.ratingKey,
+    title: item.title,
+    year: item.year,
+  }));
+}

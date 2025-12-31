@@ -23,8 +23,14 @@ export default function DashboardPage() {
   const { hasSavedSelection, isLoading: librariesLoading, refresh: refreshLibraries } = useSavedLibraries();
   const { configured: aiConfigured, isLoading: aiLoading, refreshConfig: refreshAIConfig } = useAIConfig();
   const { status: plexStatus, refreshStatus: refreshPlexStatus } = usePlexAuth();
-  const [activeTab, setActiveTab] = useState<TabType>('create');
+  const [activeTab, setActiveTabState] = useState<TabType>('create');
   const [searchType, setSearchType] = useState<SearchType>('default');
+
+  // Wrapper to scroll to top when changing tabs
+  const setActiveTab = (tab: TabType) => {
+    setActiveTabState(tab);
+    window.scrollTo(0, 0);
+  };
   const [scanComplete, setScanComplete] = useState(false);
   const [scanResults, setScanResults] = useState<{ movies: number; shows: number; scanId: number } | null>(null);
 

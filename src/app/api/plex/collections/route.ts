@@ -345,11 +345,27 @@ export async function POST(request: Request) {
       itemsToAdd = items.filter((item: string) => !currentItemsSet.has(item));
 
       if (itemsToAdd.length === 0) {
-        // All items already in collection
+        // All items already in collection - mark as applied
         await db
           .update(suggestions)
           .set({ status: "applied" })
           .where(eq(suggestions.id, suggestionId));
+
+        // Create appliedCollections record if it doesn't exist (for orphan detection)
+        const existingRecord = await db
+          .select()
+          .from(appliedCollections)
+          .where(eq(appliedCollections.suggestionId, suggestionId))
+          .limit(1);
+
+        if (existingRecord.length === 0) {
+          await db.insert(appliedCollections).values({
+            suggestionId,
+            plexCollectionKey: collectionKey,
+            collectionName,
+            itemCount: items.length,
+          });
+        }
 
         return NextResponse.json({
           success: true,
@@ -401,15 +417,22 @@ export async function POST(request: Request) {
       addResult.errors = result.errors;
     }
 
-    // Only mark as "applied" and create record when a NEW collection is created
-    // When adding to an existing collection, keep the suggestion as "approved" so it doesn't
-    // create duplicates in the suggestions list
-    if (isNewCollection) {
-      await db
-        .update(suggestions)
-        .set({ status: "applied" })
-        .where(eq(suggestions.id, suggestionId));
+    // Always mark as "applied" when successfully adding to Plex
+    // This ensures the UI updates correctly for both new and existing collections
+    await db
+      .update(suggestions)
+      .set({ status: "applied" })
+      .where(eq(suggestions.id, suggestionId));
 
+    // Track the applied collection - required for orphan detection to work correctly
+    // Insert for new collections, or if no record exists for this suggestion yet
+    const existingRecord = await db
+      .select()
+      .from(appliedCollections)
+      .where(eq(appliedCollections.suggestionId, suggestionId))
+      .limit(1);
+
+    if (existingRecord.length === 0) {
       await db.insert(appliedCollections).values({
         suggestionId,
         plexCollectionKey: collectionKey,
