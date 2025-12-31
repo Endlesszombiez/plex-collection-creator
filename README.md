@@ -125,7 +125,7 @@ Want something specific? Use **Custom Search** to ask for anything:
 | **AWS Bedrock**      | Requires AWS account with Bedrock model access enabled                                                     |
 | **Google Vertex AI** | Requires GCP project with Vertex AI API enabled                                                            |
 
-This app uses an LLM provider to analyze your library. Be sure to keep an eye on your costs.
+**Cost-conscious design:** The app uses smaller, faster models (like Claude Haiku) for validation and filtering tasks, reserving larger models only for creative analysis. This keeps costs low — typically just a few cents per scan.
 
 ---
 
