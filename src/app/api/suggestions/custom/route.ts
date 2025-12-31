@@ -91,6 +91,7 @@ export async function GET(request: Request) {
         send({ type: "progress", phase: "loading", message: "Loading AI configuration..." });
 
         const model = await getConfiguredAIModel();
+        const fastModel = await getFastAIModel();
         if (!model) {
           send({ type: "error", phase: "loading", error: "AI not configured" });
           controller.close();
@@ -354,7 +355,7 @@ export async function GET(request: Request) {
           const auditPrompt = createCustomAuditPrompt(collectionsWithItems, candidateItems, customPrompt);
           const { text: auditResponse } = await generateText({
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            model: model as any,
+            model: (fastModel || model) as any,
             system: CUSTOM_AUDIT_SYSTEM_PROMPT,
             prompt: auditPrompt,
           });
