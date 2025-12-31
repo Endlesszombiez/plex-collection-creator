@@ -16,6 +16,16 @@ import { encrypt, decrypt } from "@/lib/encryption";
 import { eq } from "drizzle-orm";
 
 /**
+ * Fast/cheap model IDs for lightweight tasks (deduplication, etc.)
+ */
+const FAST_MODELS: Record<AIProvider, string> = {
+  anthropic: "claude-3-haiku-20240307",
+  bedrock: "anthropic.claude-3-haiku-20240307-v1:0",
+  vertex: "claude-3-haiku@20240307",
+  openai: "gpt-4o-mini",
+};
+
+/**
  * Create an AI model instance based on provider and credentials
  */
 export function createAIModel(
@@ -188,6 +198,21 @@ export async function getConfiguredAIModel() {
   }
 
   return createAIModel(config.provider, config.credentials);
+}
+
+/**
+ * Get a fast/cheap model for lightweight tasks (deduplication, validation, etc.)
+ * Uses Haiku for Claude providers, gpt-4o-mini for OpenAI
+ */
+export async function getFastAIModel() {
+  const config = await getAIConfig();
+
+  if (!config.configured || !config.provider || !config.credentials) {
+    return null;
+  }
+
+  const fastModelId = FAST_MODELS[config.provider];
+  return createAIModel(config.provider, config.credentials, fastModelId);
 }
 
 /**

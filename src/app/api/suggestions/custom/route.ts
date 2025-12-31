@@ -1,13 +1,16 @@
 import { db, settings, scans, suggestions } from "@/lib/db";
 import { getLibraryItems, PlexMediaItem, getExistingCollections, PlexCollection } from "@/lib/plex/client";
 import { getPlexToken } from "@/lib/plex/auth";
-import { getConfiguredAIModel } from "@/lib/ai/provider";
+import { getConfiguredAIModel, getFastAIModel } from "@/lib/ai/provider";
 import {
   CUSTOM_ANALYSIS_SYSTEM_PROMPT,
   createCustomAnalysisPrompt,
   parseAIResponse,
   validateCollections,
   PreviousSuggestion,
+  DEDUPLICATION_SYSTEM_PROMPT,
+  createDeduplicationPrompt,
+  parseDeduplicationResponse,
 } from "@/lib/ai/prompts";
 import { generateText } from "ai";
 import { eq, desc, inArray, and } from "drizzle-orm";
@@ -287,7 +290,51 @@ export async function GET(request: Request) {
         const validKeys = new Set<string>();
         [...allMovies, ...allShows].forEach((item) => validKeys.add(item.ratingKey));
 
-        const validatedCollections = validateCollections(parsedCollections, validKeys);
+        let validatedCollections = validateCollections(parsedCollections, validKeys);
+
+        // Use AI to detect semantic duplicates (e.g., "MCU" = "Marvel Cinematic Universe")
+        if (validatedCollections.length > 0 && existingCollections.length > 0) {
+          send({
+            type: "progress",
+            phase: "saving",
+            message: "Checking for duplicate collections...",
+          });
+
+          const fastModel = await getFastAIModel();
+          if (fastModel) {
+            const dedupePrompt = createDeduplicationPrompt(
+              existingCollections.map((c) => ({ title: c.title, childCount: c.childCount || 0 })),
+              validatedCollections.map((c) => ({ name: c.name, itemCount: c.items.length }))
+            );
+
+            try {
+              const { text: dedupeResponse } = await generateText({
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                model: fastModel as any,
+                system: DEDUPLICATION_SYSTEM_PROMPT,
+                prompt: dedupePrompt,
+              });
+
+              const duplicates = parseDeduplicationResponse(dedupeResponse);
+              if (duplicates.length > 0) {
+                const duplicateNames = new Set(
+                  duplicates.map((d) => d.suggested.toLowerCase().trim())
+                );
+                const beforeCount = validatedCollections.length;
+                validatedCollections = validatedCollections.filter(
+                  (c) => !duplicateNames.has(c.name.toLowerCase().trim())
+                );
+                const filteredCount = beforeCount - validatedCollections.length;
+                if (filteredCount > 0) {
+                  console.log(`Filtered ${filteredCount} duplicate suggestions:`, duplicates);
+                }
+              }
+            } catch (error) {
+              // If deduplication fails, continue without filtering
+              console.error("Deduplication check failed:", error);
+            }
+          }
+        }
 
         if (validatedCollections.length === 0) {
           send({ type: "error", phase: "saving", error: "No items matching your criteria were found" });

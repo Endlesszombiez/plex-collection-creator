@@ -265,3 +265,86 @@ Important:
 ${existingWarning}
 ${previousWarning}`;
 }
+
+/**
+ * System prompt for deduplication analysis.
+ */
+export const DEDUPLICATION_SYSTEM_PROMPT = `You are a helpful assistant that identifies duplicate or semantically equivalent collection names.
+
+Given a list of EXISTING collections and SUGGESTED collections, identify which suggestions are duplicates of existing collections.
+
+Two collections are duplicates if:
+- They have the same or very similar names (e.g., "John Wick" = "John Wick Series")
+- They refer to the same franchise/grouping (e.g., "MCU" = "Marvel Cinematic Universe")
+- One is a subset concept of the other (e.g., "Star Wars" encompasses "Star Wars Original Trilogy")
+
+Return ONLY the suggested collection names that are duplicates.
+
+You MUST respond with valid JSON only. No markdown, no explanations outside JSON.`;
+
+/**
+ * Create prompt for deduplication analysis.
+ */
+export function createDeduplicationPrompt(
+  existingCollections: { title: string; childCount: number }[],
+  suggestedCollections: { name: string; itemCount: number }[]
+): string {
+  const existing = existingCollections
+    .map((c) => `- "${c.title}" (${c.childCount} items)`)
+    .join("\n");
+
+  const suggested = suggestedCollections
+    .map((c) => `- "${c.name}" (${c.itemCount} items)`)
+    .join("\n");
+
+  return `## EXISTING PLEX COLLECTIONS
+${existing}
+
+## SUGGESTED NEW COLLECTIONS
+${suggested}
+
+Analyze which suggested collections are duplicates of existing collections.
+Only flag a suggestion as duplicate if:
+1. It's semantically the same collection (similar names, same franchise)
+2. AND it doesn't have MORE items than the existing collection
+
+Respond with JSON:
+{
+  "duplicates": [
+    {
+      "suggested": "Name of duplicate suggestion",
+      "existingMatch": "Name of existing collection it matches",
+      "reason": "Brief explanation"
+    }
+  ]
+}
+
+If no duplicates found, return: { "duplicates": [] }`;
+}
+
+/**
+ * Parse deduplication response.
+ */
+export interface DuplicateMatch {
+  suggested: string;
+  existingMatch: string;
+  reason: string;
+}
+
+export function parseDeduplicationResponse(response: string): DuplicateMatch[] {
+  let jsonStr = response.trim();
+
+  // Remove markdown code blocks if present
+  if (jsonStr.startsWith("```")) {
+    const lines = jsonStr.split("\n");
+    jsonStr = lines.slice(1, -1).join("\n");
+  }
+
+  try {
+    const parsed = JSON.parse(jsonStr);
+    return Array.isArray(parsed.duplicates) ? parsed.duplicates : [];
+  } catch (error) {
+    console.error("Failed to parse deduplication response:", error);
+    return [];
+  }
+}
