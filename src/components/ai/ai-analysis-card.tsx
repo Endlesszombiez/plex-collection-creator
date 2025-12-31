@@ -190,11 +190,21 @@ export function AIAnalysisCard({ scanId, movieCount, showCount, embedded = false
             </div>
             <div className="h-2 bg-white/5 rounded-full overflow-hidden">
               <div
-                className="h-full bg-[#E5A00D] rounded-full transition-all duration-1000 animate-pulse"
+                className="h-full bg-[#E5A00D] rounded-full transition-all duration-500"
                 style={{
-                  width: progress?.phase === "loading" ? "20%" :
-                         progress?.phase === "analyzing" ? "60%" :
-                         progress?.phase === "saving" ? "90%" : "0%"
+                  width: (() => {
+                    if (!progress) return "5%";
+                    if (progress.phase === "loading") return "10%";
+                    if (progress.phase === "saving") return "95%";
+                    if (progress.phase === "analyzing" && progress.pass && progress.totalPasses) {
+                      // Progress from 15% to 90% based on pass
+                      const passProgress = 15 + ((progress.pass - 1) / progress.totalPasses) * 75;
+                      return `${Math.min(passProgress, 90)}%`;
+                    }
+                    // Analyzing phase but no pass info yet (e.g., "Starting multi-pass analysis...")
+                    if (progress.phase === "analyzing") return "12%";
+                    return "5%";
+                  })()
                 }}
               />
             </div>

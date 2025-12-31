@@ -29,6 +29,7 @@ export async function GET() {
       configured: true,
       provider: config.provider,
       providerName: providerInfo?.name || config.provider,
+      source: config.source,
     });
   } catch (error) {
     console.error("Error getting AI config:", error);

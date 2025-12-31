@@ -161,17 +161,84 @@ export async function saveAIConfig(
 }
 
 /**
- * Get AI configuration from database
+ * Check for AI credentials in environment variables.
+ * Returns provider and credentials if found, null otherwise.
+ */
+function getCredentialsFromEnv(): {
+  provider: AIProvider;
+  credentials: Record<string, string>;
+} | null {
+  // Check Anthropic
+  if (process.env.ANTHROPIC_API_KEY) {
+    return {
+      provider: "anthropic",
+      credentials: { apiKey: process.env.ANTHROPIC_API_KEY },
+    };
+  }
+
+  // Check OpenAI
+  if (process.env.OPENAI_API_KEY) {
+    return {
+      provider: "openai",
+      credentials: {
+        apiKey: process.env.OPENAI_API_KEY,
+        baseUrl: process.env.OPENAI_BASE_URL || "",
+      },
+    };
+  }
+
+  // Check AWS Bedrock
+  if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
+    return {
+      provider: "bedrock",
+      credentials: {
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+        region: process.env.AWS_REGION || "us-east-1",
+      },
+    };
+  }
+
+  // Check Google Vertex AI
+  if (process.env.GOOGLE_CLOUD_PROJECT) {
+    return {
+      provider: "vertex",
+      credentials: {
+        projectId: process.env.GOOGLE_CLOUD_PROJECT,
+        location: process.env.GOOGLE_CLOUD_LOCATION || "us-central1",
+      },
+    };
+  }
+
+  return null;
+}
+
+/**
+ * Get AI configuration.
+ * Priority: 1) Environment variables, 2) Database (encrypted)
  */
 export async function getAIConfig(): Promise<{
   provider: AIProvider | null;
   credentials: Record<string, string> | null;
   configured: boolean;
+  source: "env" | "database" | null;
 }> {
+  // Priority 1: Check environment variables
+  const envConfig = getCredentialsFromEnv();
+  if (envConfig) {
+    return {
+      provider: envConfig.provider,
+      credentials: envConfig.credentials,
+      configured: true,
+      source: "env",
+    };
+  }
+
+  // Priority 2: Check database
   const result = await db.select().from(settings).limit(1);
 
   if (result.length === 0 || !result[0].aiProvider || !result[0].aiCredentials) {
-    return { provider: null, credentials: null, configured: false };
+    return { provider: null, credentials: null, configured: false, source: null };
   }
 
   try {
@@ -180,10 +247,11 @@ export async function getAIConfig(): Promise<{
       provider: result[0].aiProvider as AIProvider,
       credentials,
       configured: true,
+      source: "database",
     };
   } catch (error) {
     console.error("Error decrypting AI credentials:", error);
-    return { provider: null, credentials: null, configured: false };
+    return { provider: null, credentials: null, configured: false, source: null };
   }
 }
 

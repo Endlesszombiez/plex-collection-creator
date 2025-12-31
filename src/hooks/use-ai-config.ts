@@ -7,6 +7,7 @@ interface AIConfigState {
   configured: boolean;
   provider: AIProvider | null;
   providerName: string | null;
+  source: "env" | "database" | null;
   isLoading: boolean;
   isSaving: boolean;
   isTesting: boolean;
@@ -28,6 +29,7 @@ export function useAIConfig(): UseAIConfigReturn {
     configured: false,
     provider: null,
     providerName: null,
+    source: null,
     isLoading: true,
     isSaving: false,
     isTesting: false,
@@ -49,6 +51,7 @@ export function useAIConfig(): UseAIConfigReturn {
           configured: data.configured,
           provider: data.provider,
           providerName: data.providerName,
+          source: data.source || null,
           isLoading: false,
         }));
       } else {
@@ -128,6 +131,7 @@ export function useAIConfig(): UseAIConfigReturn {
             configured: true,
             provider,
             providerName: providerInfo?.name || provider,
+            source: "database",
           }));
           return true;
         } else {
@@ -168,6 +172,7 @@ export function useAIConfig(): UseAIConfigReturn {
           configured: false,
           provider: null,
           providerName: null,
+          source: null,
           testResult: null,
         }));
         return true;

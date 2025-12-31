@@ -280,16 +280,21 @@ export function CustomPromptCard({ scanId, movieCount, showCount, embedded = fal
             </div>
             <div className="h-2 bg-white/5 rounded-full overflow-hidden">
               <div
-                className="h-full bg-purple-500 rounded-full transition-all duration-1000 animate-pulse"
+                className="h-full bg-purple-500 rounded-full transition-all duration-500"
                 style={{
-                  width:
-                    progress?.phase === "loading"
-                      ? "20%"
-                      : progress?.phase === "analyzing"
-                        ? "60%"
-                        : progress?.phase === "saving"
-                          ? "90%"
-                          : "0%",
+                  width: (() => {
+                    if (!progress) return "5%";
+                    if (progress.phase === "loading") return "10%";
+                    if (progress.phase === "saving") return "95%";
+                    // Use step-based progress during analyzing phase
+                    if (progress.phase === "analyzing" && progress.step && progress.totalSteps) {
+                      // Progress from 15% to 90% based on step
+                      const stepProgress = 15 + ((progress.step - 1) / progress.totalSteps) * 75;
+                      return `${Math.min(stepProgress, 90)}%`;
+                    }
+                    if (progress.phase === "analyzing") return "15%";
+                    return "5%";
+                  })()
                 }}
               />
             </div>

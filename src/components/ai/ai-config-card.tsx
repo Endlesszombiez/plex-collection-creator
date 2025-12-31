@@ -54,6 +54,7 @@ export function AIConfigCard({ onComplete }: AIConfigCardProps) {
     configured,
     provider: savedProvider,
     providerName,
+    source,
     isLoading,
     isSaving,
     isTesting,
@@ -135,6 +136,8 @@ export function AIConfigCard({ onComplete }: AIConfigCardProps) {
 
   // Configured state (not editing)
   if (configured && !showForm) {
+    const isFromEnv = source === "env";
+
     return (
       <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 overflow-hidden">
         <div className="p-6">
@@ -151,6 +154,11 @@ export function AIConfigCard({ onComplete }: AIConfigCardProps) {
                 <p className="text-sm text-white/50">
                   Connected to {providerName}
                 </p>
+                {isFromEnv && (
+                  <p className="text-xs text-emerald-400/70 mt-1">
+                    Configured via environment variable
+                  </p>
+                )}
               </div>
             </div>
             <div className="px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/20 text-emerald-400">
@@ -159,21 +167,23 @@ export function AIConfigCard({ onComplete }: AIConfigCardProps) {
           </div>
         </div>
 
-        <div className="px-6 py-4 border-t border-white/5 flex justify-end gap-2">
-          <button
-            onClick={() => setShowForm(true)}
-            className="px-4 py-2 rounded-lg text-sm font-medium bg-white/5 hover:bg-white/10 text-white/60 hover:text-white transition-all"
-          >
-            Change Provider
-          </button>
-          <button
-            onClick={handleDisconnect}
-            disabled={isSaving}
-            className="px-4 py-2 rounded-lg text-sm font-medium text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 hover:border-red-500/30 transition-all disabled:opacity-50"
-          >
-            Disconnect
-          </button>
-        </div>
+        {!isFromEnv && (
+          <div className="px-6 py-4 border-t border-white/5 flex justify-end gap-2">
+            <button
+              onClick={() => setShowForm(true)}
+              className="px-4 py-2 rounded-lg text-sm font-medium bg-white/5 hover:bg-white/10 text-white/60 hover:text-white transition-all"
+            >
+              Change Provider
+            </button>
+            <button
+              onClick={handleDisconnect}
+              disabled={isSaving}
+              className="px-4 py-2 rounded-lg text-sm font-medium text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 hover:border-red-500/30 transition-all disabled:opacity-50"
+            >
+              Disconnect
+            </button>
+          </div>
+        )}
       </div>
     );
   }

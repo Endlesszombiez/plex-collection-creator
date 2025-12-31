@@ -10,6 +10,8 @@ interface AnalysisProgress {
   suggestionsCount?: number;
   suggestionIds?: number[];
   error?: string;
+  step?: number;
+  totalSteps?: number;
 }
 
 interface AnalysisState {

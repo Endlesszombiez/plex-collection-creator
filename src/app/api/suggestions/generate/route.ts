@@ -24,6 +24,8 @@ interface AnalysisProgress {
   suggestionsCount?: number;
   suggestionIds?: number[];
   error?: string;
+  pass?: number;
+  totalPasses?: number;
 }
 
 /**
@@ -202,6 +204,8 @@ export async function GET(request: Request) {
             phase: "analyzing",
             message: `[Pass ${progress.pass}/5] ${progress.passName}: ${progress.message}`,
             totalItems,
+            pass: progress.pass,
+            totalPasses: 5,
           });
         });
 

@@ -141,9 +141,34 @@ This app uses an LLM provider to analyze your library. Be sure to keep an eye on
 
 Your AI provider only sees the movie titles and metadata needed to suggest collections. They don't receive your Plex credentials or any personal information.
 
+**Using environment variables (optional):**
+
+For advanced users who prefer not to enter credentials in the UI, you can pre-configure your AI provider via environment variables:
+
+```bash
+# Create .env file with your credentials
+# Anthropic
+echo "ANTHROPIC_API_KEY=sk-ant-..." > .env
+
+# OR OpenAI
+echo "OPENAI_API_KEY=sk-..." > .env
+
+# OR AWS Bedrock
+cat > .env << 'EOF'
+AWS_ACCESS_KEY_ID=AKIA...
+AWS_SECRET_ACCESS_KEY=...
+AWS_REGION=us-east-1
+EOF
+
+# Then start the app
+docker compose up -d
+```
+
+When credentials are provided via environment variables, they take priority and the UI will show "Configured via environment variable".
+
 **Using your own encryption key (optional):**
 
-If you prefer to manage your own encryption key, create a `.env` file before starting:
+If you prefer to manage your own encryption key for database-stored credentials:
 
 ```bash
 # Generate a secure key and create .env file

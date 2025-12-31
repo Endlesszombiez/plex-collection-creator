@@ -42,6 +42,8 @@ interface AnalysisProgress {
   suggestionsCount?: number;
   suggestionIds?: number[];
   error?: string;
+  step?: number;
+  totalSteps?: number;
 }
 
 /**
@@ -271,11 +273,15 @@ export async function GET(request: Request) {
         // Use embeddings to find semantically similar items first, then only
         // send those candidates to the AI. This dramatically reduces token usage.
 
+        const totalSteps = 6; // semantic, audit, new collections, dedup, validate, save
+
         send({
           type: "progress",
           phase: "analyzing",
           message: "Finding semantically similar items...",
           totalItems,
+          step: 1,
+          totalSteps,
         });
 
         // Convert to embedding format (movies only for now - embeddings work on metadata)
@@ -336,8 +342,10 @@ export async function GET(request: Request) {
         send({
           type: "progress",
           phase: "analyzing",
-          message: `Checking existing collections for items matching "${customPrompt.slice(0, 30)}${customPrompt.length > 30 ? "..." : ""}"...`,
+          message: `Checking existing collections for matches...`,
           totalItems: candidateItems.length,
+          step: 2,
+          totalSteps,
         });
 
         let auditResults: ParsedCollection[] = [];
@@ -359,6 +367,8 @@ export async function GET(request: Request) {
           phase: "analyzing",
           message: `Analyzing ${candidateItems.length} candidate items...`,
           totalItems: candidateItems.length,
+          step: 3,
+          totalSteps,
         });
 
         // Use candidateItems for focused AI analysis (pre-filtered by semantic search)
@@ -418,8 +428,10 @@ export async function GET(request: Request) {
         if (validatedNewResults.length > 0 && existingCollections.length > 0) {
           send({
             type: "progress",
-            phase: "saving",
+            phase: "analyzing",
             message: "Checking for duplicate collections...",
+            step: 4,
+            totalSteps,
           });
 
           const fastModel = await getFastAIModel();
@@ -467,8 +479,10 @@ export async function GET(request: Request) {
         if (validatedCollections.length > 0) {
           send({
             type: "progress",
-            phase: "saving",
+            phase: "analyzing",
             message: `Validating ${validatedCollections.length} collection suggestions...`,
+            step: 5,
+            totalSteps,
           });
 
           const validationModel = await getFastAIModel();
@@ -555,6 +569,8 @@ export async function GET(request: Request) {
           type: "progress",
           phase: "saving",
           message: `Saving ${validatedCollections.length} results...`,
+          step: 6,
+          totalSteps,
         });
 
         // Build lookup map for enriching items with titles
