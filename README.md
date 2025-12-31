@@ -1,28 +1,41 @@
 # Plex Collection Creator
 
-AI-powered collection suggestions for your Plex media library. Automatically detect franchises, series, and thematic groupings using AI analysis.
+**Automatically organize your Plex library with AI-powered collections.**
 
 ![Plex Collection Creator](https://img.shields.io/badge/Plex-Collection%20Creator-E5A00D?style=for-the-badge&logo=plex&logoColor=white)
 
-![Dashboard](docs/images/08-suggestions-filters.png)
+![Dashboard](docs/images/07-suggestions-list.png)
 
-## Features
+Stop manually creating collections. Let AI analyze your library and suggest franchises, series, and thematic groupings — then apply them to Plex with one click.
 
-- **AI-Powered Analysis** - Uses AI to identify franchises, sequels, and thematic collections
-- **Multi-Provider Support** - Works with Anthropic, Amazon Bedrock, Google Vertex AI, or OpenAI
-- **Custom Prompts** - Create collections based on your own criteria ("Find all Christmas movies")
-- **One-Click Apply** - Review suggestions and apply them directly to Plex
-- **Secure** - All credentials encrypted with AES-256-GCM
+---
+
+## What It Does
+
+- **Finds franchises automatically** — Star Wars, Marvel, Harry Potter, etc.
+- **Discovers thematic collections** — "Mind-Bending Thrillers", "90s Classics", "Award Winners"
+- **Custom searches** — Ask for anything: "Find all Christmas movies" or "Movies with twist endings"
+- **One-click apply** — Review suggestions and create collections directly in Plex
+
+---
+
+## What You Need
+
+| Requirement | Details |
+|-------------|---------|
+| **Docker Desktop** | [Download here](https://www.docker.com/products/docker-desktop/) — free for personal use |
+| **Plex Media Server** | Running on your network |
+| **AI API Key** | From Anthropic, OpenAI, AWS Bedrock, or Google Vertex AI |
+
+> **Which AI provider?** For the easiest setup, we recommend [Anthropic](https://console.anthropic.com) or [OpenAI](https://platform.openai.com). Both offer pay-as-you-go pricing with no minimum.
+
+---
 
 ## Quick Start
 
-### Prerequisites
+### 1. Start the App
 
-- Docker and Docker Compose
-- Plex Media Server (on same network)
-- API key from one of: Anthropic, OpenAI, Amazon Bedrock, or Google Vertex AI
-
-### 1. Clone and Start
+Open a terminal and run:
 
 ```bash
 git clone https://github.com/schuettc/plex-collection-creator.git
@@ -30,213 +43,117 @@ cd plex-collection-creator
 docker compose up -d
 ```
 
-### 2. Open the App
+### 2. Open Your Browser
 
-Navigate to [http://localhost:32500](http://localhost:32500)
+Go to **[http://localhost:32500](http://localhost:32500)**
 
-### 3. Connect & Configure
+![Landing Page](docs/images/01-landing.png)
 
-1. **Connect Plex** - Sign in with your Plex account via OAuth
-2. **Select Libraries** - Choose which movie/TV libraries to analyze
-3. **Configure AI** - Add your AI provider credentials
+---
 
-![Setup Wizard](docs/images/03-setup-complete.png)
+## Setup Guide
 
-### 4. Create Collections
+The setup wizard walks you through three steps:
 
-1. **Scan Library** - Fetch metadata from your Plex server
-2. **Run AI Analysis** - Get intelligent collection suggestions
-3. **Review & Apply** - Approve suggestions and create collections in Plex
+### Step 1: Connect to Plex
+
+Click **Connect with Plex** and sign in with your Plex account. The app will find your server automatically.
+
+![Setup Wizard](docs/images/02-setup-wizard.png)
+
+### Step 2: Choose Your Libraries
+
+Select which movie and TV libraries you want to analyze.
+
+### Step 3: Add Your AI Key
+
+Enter your API key from your chosen AI provider.
+
+![Setup Complete](docs/images/03-setup-complete.png)
+
+---
+
+## Creating Collections
+
+Once setup is complete, you'll see the Dashboard:
+
+![Dashboard](docs/images/04-dashboard-create.png)
+
+### 1. Scan Your Library
+
+Click **Start Scan** to fetch your media metadata from Plex.
+
+![Scan Complete](docs/images/05-scan-complete.png)
+
+### 2. Run AI Analysis
+
+Click **Analyze** and let the AI find collection opportunities.
 
 ![Analysis Complete](docs/images/06-analysis-complete.png)
 
-## Configuration
+### 3. Review Suggestions
 
-### AI Providers
+Browse the AI's suggestions. Each shows the movies/shows that would be included.
 
-Configure one of the following AI providers in the app:
+![Suggestions](docs/images/07-suggestions-list.png)
 
-| Provider | What You Need |
-|----------|---------------|
-| **Anthropic** | API key from [console.anthropic.com](https://console.anthropic.com) |
-| **OpenAI** | API key from [platform.openai.com](https://platform.openai.com) |
-| **Amazon Bedrock** | AWS credentials with Bedrock access |
-| **Google Vertex AI** | GCP project with Vertex AI enabled |
+You can filter by type or search for specific collections:
 
-### Environment Variables (Optional)
+![Filters](docs/images/08-suggestions-filters.png)
 
-You can pre-configure credentials via environment variables instead of the UI:
+### 4. Apply to Plex
 
-```bash
-# Create .env file
-cp .env.example .env
+Click **Approve** on any suggestion to create it in Plex. Or **Reject** to dismiss it.
 
-# Edit with your credentials
-ENCRYPTION_KEY=your-32-byte-hex-key  # Generate with: openssl rand -hex 32
-ANTHROPIC_API_KEY=sk-ant-...
-# OR
-OPENAI_API_KEY=sk-...
-# OR
-AWS_ACCESS_KEY_ID=...
-AWS_SECRET_ACCESS_KEY=...
-AWS_REGION=us-east-1
-```
+![Collections](docs/images/09-collections.png)
 
-Then start with:
+---
 
-```bash
-docker compose up -d
-```
+## Custom Searches
 
-## Data Persistence
+Want something specific? Use **Custom Search** to ask for anything:
 
-Your data (Plex connection, AI config, scan history) is stored in a Docker volume.
+- "Find all movies directed by Christopher Nolan"
+- "Create a collection of 80s action movies"
+- "Group movies with surprise endings"
+- "Find all holiday and Christmas movies"
 
-### Data Lifecycle
+---
 
-| Command | Effect |
-|---------|--------|
-| `docker compose down` | Stops container, **keeps data** |
-| `docker compose down -v` | Stops container, **deletes data** |
-| `docker compose up -d` | Starts container, uses existing data |
+## Getting an AI API Key
 
-### Backup Your Data
+| Provider | How to Get a Key |
+|----------|------------------|
+| **Anthropic** | Sign up at [console.anthropic.com](https://console.anthropic.com), add a payment method, create an API key |
+| **OpenAI** | Sign up at [platform.openai.com](https://platform.openai.com), add a payment method, create an API key |
+| **AWS Bedrock** | Requires AWS account with Bedrock model access enabled |
+| **Google Vertex AI** | Requires GCP project with Vertex AI API enabled |
 
-```bash
-# Export database to current directory
-docker run --rm \
-  -v plex-collecton-creator_plex-collections-data:/data \
-  -v $(pwd):/backup \
-  alpine cp /data/plex-collections.db /backup/plex-backup.db
-```
+**Cost:** Analyzing a typical library (500-1000 movies) costs roughly $0.10-0.50 depending on provider.
 
-### Restore From Backup
+---
 
-```bash
-# Import database from backup
-docker run --rm \
-  -v plex-collecton-creator_plex-collections-data:/data \
-  -v $(pwd):/backup \
-  alpine cp /backup/plex-backup.db /data/plex-collections.db
-```
+## FAQ
 
-### Reset Everything
+**Q: Does this modify my actual media files?**
+No. It only creates collections in Plex's database. Your files are never touched.
 
-```bash
-# Stop and remove all data
-docker compose down -v
+**Q: Can I undo a collection?**
+Yes. Collections can be deleted from Plex at any time.
 
-# Start fresh
-docker compose up -d
-```
+**Q: Does it work with TV shows?**
+Yes! It finds series, spinoffs, and shared-universe shows.
 
-## Development
+**Q: My Plex server isn't found. What do I do?**
+Make sure your Plex server is on the same network. Try using the server's IP address directly.
 
-### Local Development
+**Q: How do I stop the app?**
+Run `docker compose down` in the terminal. Your data is preserved.
 
-```bash
-# Install dependencies
-npm install
+**Q: How do I completely reset?**
+Run `docker compose down -v` to remove all data and start fresh.
 
-# Generate database
-npm run db:generate
-npm run db:push
-
-# Start dev server
-npm run dev
-```
-
-### Build Docker Image
-
-```bash
-# Build locally
-docker compose build
-
-# Build with no cache
-docker compose build --no-cache
-```
-
-### Database Migrations
-
-```bash
-# Generate migration from schema changes
-npm run db:generate
-
-# Apply migrations (dev mode)
-npm run db:push
-```
-
-## Architecture
-
-```
-┌─────────────────────────────────────────┐
-│         Single Docker Container          │
-│                                          │
-│  ┌────────────────────────────────────┐ │
-│  │         Next.js 16 (App Router)    │ │
-│  │  ┌─────────────┐ ┌───────────────┐ │ │
-│  │  │  React UI   │ │ API Routes    │ │ │
-│  │  │  (Tailwind) │ │ (Server-side) │ │ │
-│  │  └─────────────┘ └───────────────┘ │ │
-│  └────────────────────────────────────┘ │
-│                    │                     │
-│  ┌────────────────────────────────────┐ │
-│  │   SQLite + Drizzle ORM (volume)    │ │
-│  └────────────────────────────────────┘ │
-│                                          │
-└────────────────┬────────────────────────┘
-                 │
-    ┌────────────┴────────────┐
-    │                         │
-    ▼                         ▼
-┌─────────┐           ┌──────────────┐
-│  Plex   │           │ AI Provider  │
-│ Server  │           │ (your key)   │
-└─────────┘           └──────────────┘
-```
-
-## Troubleshooting
-
-### "Cannot connect to Plex server"
-
-- Ensure your Plex server is on the same network as the Docker container
-- Try using the server's IP address instead of hostname
-- Check that remote access is enabled in Plex settings
-
-### "AI analysis failed"
-
-- Verify your API key is correct
-- Check you have sufficient credits/quota with your AI provider
-- For Bedrock: ensure your AWS credentials have `bedrock:InvokeModel` permission
-
-### "Port 32500 already in use"
-
-```bash
-# Find what's using the port
-lsof -i :32500
-
-# Kill the process
-kill -9 <PID>
-
-# Or change the port in docker-compose.yml
-ports:
-  - "32501:3000"  # Use a different port
-```
-
-### View Container Logs
-
-```bash
-docker compose logs -f
-```
-
-## Tech Stack
-
-- **Framework**: Next.js 16 (App Router)
-- **Language**: TypeScript
-- **Database**: SQLite + Drizzle ORM
-- **UI**: React + Tailwind CSS + shadcn/ui
-- **AI**: Vercel AI SDK (multi-provider)
-- **Auth**: Plex OAuth
+---
 
 ## License
 
