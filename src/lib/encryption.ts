@@ -1,4 +1,6 @@
 import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from "crypto";
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from "fs";
+import { dirname, join } from "path";
 
 const ALGORITHM = "aes-256-gcm";
 const IV_LENGTH = 16;
@@ -6,19 +8,50 @@ const SALT_LENGTH = 32;
 const TAG_LENGTH = 16;
 const KEY_LENGTH = 32;
 
+// Cache the key in memory after first read
+let cachedKey: string | null = null;
+
 /**
- * Get the encryption key from environment variable.
- * If not set, generates a warning and uses a default (insecure for production).
+ * Get the encryption key.
+ * Priority:
+ * 1. ENCRYPTION_KEY environment variable (for advanced users)
+ * 2. Auto-generated key stored in data directory (default, secure)
  */
 function getEncryptionKey(): string {
-  const key = process.env.ENCRYPTION_KEY;
-  if (!key) {
-    console.warn(
-      "WARNING: ENCRYPTION_KEY not set. Using insecure default. Set ENCRYPTION_KEY in production!"
-    );
-    return "insecure-default-key-do-not-use-in-production";
+  // Return cached key if available
+  if (cachedKey) {
+    return cachedKey;
   }
-  return key;
+
+  // Check environment variable first (allows override)
+  const envKey = process.env.ENCRYPTION_KEY;
+  if (envKey) {
+    cachedKey = envKey;
+    return cachedKey;
+  }
+
+  // Auto-generate and persist a key in the data directory
+  const dataDir = process.env.DATABASE_URL
+    ? dirname(process.env.DATABASE_URL)
+    : "./data";
+  const keyPath = join(dataDir, ".encryption-key");
+
+  // Ensure data directory exists
+  if (!existsSync(dataDir)) {
+    mkdirSync(dataDir, { recursive: true });
+  }
+
+  // Read existing key or generate new one
+  if (existsSync(keyPath)) {
+    cachedKey = readFileSync(keyPath, "utf8").trim();
+  } else {
+    // Generate a secure random key (64 hex chars = 32 bytes)
+    cachedKey = randomBytes(32).toString("hex");
+    writeFileSync(keyPath, cachedKey, { mode: 0o600 }); // Read/write owner only
+    console.log("Generated new encryption key (stored in data volume)");
+  }
+
+  return cachedKey;
 }
 
 /**

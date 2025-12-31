@@ -4,10 +4,6 @@
 
 ![Plex Collection Creator](https://img.shields.io/badge/Plex-Collection%20Creator-E5A00D?style=for-the-badge&logo=plex&logoColor=white)
 
-![Dashboard](docs/images/07-suggestions-list.png)
-
-Stop manually creating collections. Let AI analyze your library and suggest franchises, series, and thematic groupings — then apply them to Plex with one click.
-
 ---
 
 ## What It Does
@@ -17,17 +13,17 @@ Stop manually creating collections. Let AI analyze your library and suggest fran
 - **Custom searches** — Ask for anything: "Find all Christmas movies" or "Movies with twist endings"
 - **One-click apply** — Review suggestions and create collections directly in Plex
 
+If you need help getting started creating collections in your Plex library, give this a try and let me know what you think.
+
 ---
 
 ## What You Need
 
-| Requirement | Details |
-|-------------|---------|
-| **Docker Desktop** | [Download here](https://www.docker.com/products/docker-desktop/) — free for personal use |
-| **Plex Media Server** | Running on your network |
-| **AI API Key** | From Anthropic, OpenAI, AWS Bedrock, or Google Vertex AI |
-
-> **Which AI provider?** For the easiest setup, we recommend [Anthropic](https://console.anthropic.com) or [OpenAI](https://platform.openai.com). Both offer pay-as-you-go pricing with no minimum.
+| Requirement           | Details                                                                                  |
+| --------------------- | ---------------------------------------------------------------------------------------- |
+| **Docker Desktop**    | [Download here](https://www.docker.com/products/docker-desktop/) — free for personal use |
+| **Plex Media Server** | Running on your network                                                                  |
+| **AI API Key**        | From Anthropic, OpenAI, AWS Bedrock, or Google Vertex AI                                 |
 
 ---
 
@@ -122,14 +118,28 @@ Want something specific? Use **Custom Search** to ask for anything:
 
 ## Getting an AI API Key
 
-| Provider | How to Get a Key |
-|----------|------------------|
-| **Anthropic** | Sign up at [console.anthropic.com](https://console.anthropic.com), add a payment method, create an API key |
-| **OpenAI** | Sign up at [platform.openai.com](https://platform.openai.com), add a payment method, create an API key |
-| **AWS Bedrock** | Requires AWS account with Bedrock model access enabled |
-| **Google Vertex AI** | Requires GCP project with Vertex AI API enabled |
+| Provider             | How to Get a Key                                                                                           |
+| -------------------- | ---------------------------------------------------------------------------------------------------------- |
+| **Anthropic**        | Sign up at [console.anthropic.com](https://console.anthropic.com), add a payment method, create an API key |
+| **OpenAI**           | Sign up at [platform.openai.com](https://platform.openai.com), add a payment method, create an API key     |
+| **AWS Bedrock**      | Requires AWS account with Bedrock model access enabled                                                     |
+| **Google Vertex AI** | Requires GCP project with Vertex AI API enabled                                                            |
 
-**Cost:** Analyzing a typical library (500-1000 movies) costs roughly $0.10-0.50 depending on provider.
+This app uses an LLM provider to analyze your library. Be sure to keep an eye on your costs.
+
+---
+
+## Security & Privacy
+
+**Your credentials are safe:**
+
+- **API keys are encrypted** using AES-256-GCM (bank-grade encryption)
+- **Encryption key is auto-generated** on first startup and stored in your Docker volume
+- **Nothing leaves your network** — the app runs entirely on your machine
+- **No telemetry or analytics** — we don't collect any data
+- **Open source** — you can inspect every line of code
+
+Your AI provider only sees the movie titles and metadata needed to suggest collections. They don't receive your Plex credentials or any personal information.
 
 ---
 
@@ -145,13 +155,17 @@ Yes. Collections can be deleted from Plex at any time.
 Yes! It finds series, spinoffs, and shared-universe shows.
 
 **Q: My Plex server isn't found. What do I do?**
-Make sure your Plex server is on the same network. Try using the server's IP address directly.
+Make sure your Plex server is on the same network as Docker. Try using the server's IP address directly instead of the hostname.
 
 **Q: How do I stop the app?**
 Run `docker compose down` in the terminal. Your data is preserved.
 
 **Q: How do I completely reset?**
 Run `docker compose down -v` to remove all data and start fresh.
+
+---
+
+This is a personal project and not associated with or created by Plex. I just love their app and wanted to make something to help me create collections.
 
 ---
 
