@@ -133,13 +133,25 @@ This app uses an LLM provider to analyze your library. Be sure to keep an eye on
 
 **Your credentials are safe:**
 
-- **API keys are encrypted** using AES-256-GCM (bank-grade encryption)
+- **API keys are encrypted** using AES-256-GCM
 - **Encryption key is auto-generated** on first startup and stored in your Docker volume
 - **Nothing leaves your network** — the app runs entirely on your machine
 - **No telemetry or analytics** — we don't collect any data
 - **Open source** — you can inspect every line of code
 
 Your AI provider only sees the movie titles and metadata needed to suggest collections. They don't receive your Plex credentials or any personal information.
+
+**Using your own encryption key (optional):**
+
+If you prefer to manage your own encryption key, create a `.env` file before starting:
+
+```bash
+# Generate a secure key and create .env file
+echo "ENCRYPTION_KEY=$(openssl rand -hex 32)" > .env
+
+# Then start the app
+docker compose up -d
+```
 
 ---
 
