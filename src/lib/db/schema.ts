@@ -9,7 +9,7 @@ export const settings = sqliteTable("settings", {
   plexServerId: text("plex_server_id"),
   plexServerName: text("plex_server_name"),
   // AI provider configuration
-  aiProvider: text("ai_provider"), // anthropic | bedrock | vertex | openai
+  aiProvider: text("ai_provider"), // anthropic | bedrock | vertex | openai | lmstudio
   aiCredentials: text("ai_credentials"), // Encrypted JSON
   // Selected libraries for scanning
   selectedLibraries: text("selected_libraries"), // JSON array

@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAIConfig, saveAIConfig, clearAIConfig } from "@/lib/ai/provider";
+import {
+  getAIConfig,
+  saveAIConfig,
+  clearAIConfig,
+  normalizeCredentials,
+} from "@/lib/ai/provider";
 import { AIProvider, AI_PROVIDERS, getProviderInfo } from "@/lib/ai/types";
 
 export const dynamic = "force-dynamic";
@@ -70,9 +75,10 @@ export async function POST(request: NextRequest) {
 
     // Validate required fields
     const providerInfo = getProviderInfo(provider as AIProvider);
+    const normalizedCredentials = normalizeCredentials(provider as AIProvider, credentials);
     if (providerInfo) {
       for (const field of providerInfo.requiredFields) {
-        if (field.required && !credentials[field.key]) {
+        if (field.required && !normalizedCredentials[field.key]) {
           return NextResponse.json(
             { success: false, error: `${field.label} is required` },
             { status: 400 }
@@ -82,7 +88,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Save configuration (credentials will be encrypted)
-    await saveAIConfig(provider as AIProvider, credentials);
+    await saveAIConfig(provider as AIProvider, normalizedCredentials);
 
     return NextResponse.json({
       success: true,

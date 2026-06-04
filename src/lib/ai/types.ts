@@ -1,7 +1,7 @@
 /**
  * Supported AI providers
  */
-export type AIProvider = "anthropic" | "bedrock" | "vertex" | "openai";
+export type AIProvider = "anthropic" | "bedrock" | "vertex" | "openai" | "lmstudio";
 
 /**
  * Provider display information
@@ -12,7 +12,10 @@ export interface AIProviderInfo {
   description: string;
   requiredFields: AICredentialField[];
   defaultModel: string;
+  fastModel: string;
   models: string[];
+  local?: boolean;
+  openAICompatible?: boolean;
 }
 
 /**
@@ -53,11 +56,19 @@ export interface OpenAICredentials {
   baseUrl?: string; // For OpenAI-compatible APIs
 }
 
+export interface LMStudioCredentials {
+  baseUrl: string;
+  model: string;
+  fastModel?: string;
+  apiKey?: string;
+}
+
 export type AICredentials =
   | { provider: "anthropic"; credentials: AnthropicCredentials }
   | { provider: "bedrock"; credentials: BedrockCredentials }
   | { provider: "vertex"; credentials: VertexCredentials }
-  | { provider: "openai"; credentials: OpenAICredentials };
+  | { provider: "openai"; credentials: OpenAICredentials }
+  | { provider: "lmstudio"; credentials: LMStudioCredentials };
 
 /**
  * Provider configuration with all details
@@ -68,6 +79,7 @@ export const AI_PROVIDERS: AIProviderInfo[] = [
     name: "Anthropic",
     description: "Claude models via Anthropic API",
     defaultModel: "claude-sonnet-4-20250514",
+    fastModel: "claude-3-haiku-20240307",
     models: [
       "claude-sonnet-4-20250514",
       "claude-3-5-sonnet-20241022",
@@ -89,6 +101,7 @@ export const AI_PROVIDERS: AIProviderInfo[] = [
     name: "Amazon Bedrock",
     description: "Claude models via AWS Bedrock",
     defaultModel: "anthropic.claude-sonnet-4-20250514-v1:0",
+    fastModel: "anthropic.claude-3-haiku-20240307-v1:0",
     models: [
       "anthropic.claude-sonnet-4-20250514-v1:0",
       "anthropic.claude-3-5-sonnet-20241022-v2:0",
@@ -128,6 +141,7 @@ export const AI_PROVIDERS: AIProviderInfo[] = [
     name: "Google Vertex AI",
     description: "Claude models via Google Cloud",
     defaultModel: "claude-sonnet-4@20250514",
+    fastModel: "claude-3-haiku@20240307",
     models: [
       "claude-sonnet-4@20250514",
       "claude-3-5-sonnet-v2@20241022",
@@ -160,7 +174,9 @@ export const AI_PROVIDERS: AIProviderInfo[] = [
     name: "OpenAI",
     description: "GPT models or OpenAI-compatible APIs",
     defaultModel: "gpt-4o",
+    fastModel: "gpt-4o-mini",
     models: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo"],
+    openAICompatible: true,
     requiredFields: [
       {
         key: "apiKey",
@@ -177,6 +193,51 @@ export const AI_PROVIDERS: AIProviderInfo[] = [
         placeholder: "https://api.openai.com/v1",
         required: false,
         helpText: "For OpenAI-compatible APIs (e.g., local LLMs)",
+      },
+    ],
+  },
+  {
+    id: "lmstudio",
+    name: "LM Studio",
+    description: "Local OpenAI-compatible server",
+    defaultModel: "local-model",
+    fastModel: "local-model",
+    models: ["local-model"],
+    local: true,
+    openAICompatible: true,
+    requiredFields: [
+      {
+        key: "baseUrl",
+        label: "Base URL",
+        type: "text",
+        placeholder: "http://host.docker.internal:1234/v1",
+        required: true,
+        helpText:
+          "Use http://localhost:1234/v1 outside Docker, or host.docker.internal from Docker.",
+      },
+      {
+        key: "model",
+        label: "Model",
+        type: "text",
+        placeholder: "Loaded model identifier",
+        required: true,
+        helpText: "Use the model identifier shown by LM Studio Local Server.",
+      },
+      {
+        key: "fastModel",
+        label: "Fast Model (Optional)",
+        type: "text",
+        placeholder: "Same as model",
+        required: false,
+        helpText: "Optional smaller local model for validation and deduplication.",
+      },
+      {
+        key: "apiKey",
+        label: "API Key (Optional)",
+        type: "password",
+        placeholder: "lm-studio",
+        required: false,
+        helpText: "Only needed if your local server requires one.",
       },
     ],
   },

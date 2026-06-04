@@ -194,7 +194,7 @@ export function AIConfigCard({ onComplete }: AIConfigCardProps) {
       {/* Provider Selection */}
       <div className="p-6 border-b border-white/5">
         <h3 className="text-sm font-medium text-white/80 mb-4">Select Provider</h3>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           {AI_PROVIDERS.map((provider) => (
             <button
               key={provider.id}

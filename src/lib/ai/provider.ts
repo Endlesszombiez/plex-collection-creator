@@ -9,20 +9,94 @@ import {
   BedrockCredentials,
   VertexCredentials,
   OpenAICredentials,
+  LMStudioCredentials,
   getProviderInfo,
 } from "./types";
 import { db, settings } from "@/lib/db";
 import { encrypt, decrypt } from "@/lib/encryption";
 import { eq } from "drizzle-orm";
 
-/**
- * Fast/cheap model IDs for lightweight tasks (deduplication, etc.)
- */
-const FAST_MODELS: Record<AIProvider, string> = {
-  anthropic: "claude-3-haiku-20240307",
-  bedrock: "anthropic.claude-3-haiku-20240307-v1:0",
-  vertex: "claude-3-haiku@20240307",
-  openai: "gpt-4o-mini",
+function normalizeBaseUrl(baseUrl: string): string {
+  return baseUrl.trim().replace(/\/+$/, "");
+}
+
+export function normalizeCredentials(
+  provider: AIProvider,
+  credentials: Record<string, string>
+): Record<string, string> {
+  const normalized = Object.fromEntries(
+    Object.entries(credentials).map(([key, value]) => [
+      key,
+      typeof value === "string" ? value.trim() : value,
+    ])
+  ) as Record<string, string>;
+
+  if ("baseUrl" in normalized) {
+    normalized.baseUrl = normalizeBaseUrl(normalized.baseUrl);
+  }
+
+  if (provider === "lmstudio") {
+    normalized.apiKey = normalized.apiKey || "lm-studio";
+    normalized.fastModel = normalized.fastModel || normalized.model;
+  }
+
+  return normalized;
+}
+
+function createAnthropicModel(credentials: Record<string, string>, model: string) {
+  const creds = credentials as unknown as AnthropicCredentials;
+  const anthropic = createAnthropic({
+    apiKey: creds.apiKey,
+  });
+  return anthropic(model);
+}
+
+function createBedrockModel(credentials: Record<string, string>, model: string) {
+  const creds = credentials as unknown as BedrockCredentials;
+  const bedrock = createAmazonBedrock({
+    accessKeyId: creds.accessKeyId,
+    secretAccessKey: creds.secretAccessKey,
+    region: creds.region,
+  });
+  return bedrock(model);
+}
+
+function createVertexModel(credentials: Record<string, string>, model: string) {
+  const creds = credentials as unknown as VertexCredentials;
+  const vertex = createVertex({
+    project: creds.projectId,
+    location: creds.location,
+  });
+  return vertex(model);
+}
+
+function createOpenAIModel(credentials: Record<string, string>, model: string) {
+  const creds = credentials as unknown as OpenAICredentials;
+  const openai = createOpenAI({
+    apiKey: creds.apiKey,
+    baseURL: creds.baseUrl || undefined,
+  });
+  return openai(model);
+}
+
+function createLMStudioModel(credentials: Record<string, string>, model: string) {
+  const creds = credentials as unknown as LMStudioCredentials;
+  const openai = createOpenAI({
+    apiKey: creds.apiKey || "lm-studio",
+    baseURL: creds.baseUrl || "http://localhost:1234/v1",
+  });
+  return openai(model);
+}
+
+const modelFactories: Record<
+  AIProvider,
+  (credentials: Record<string, string>, model: string) => unknown
+> = {
+  anthropic: createAnthropicModel,
+  bedrock: createBedrockModel,
+  vertex: createVertexModel,
+  openai: createOpenAIModel,
+  lmstudio: createLMStudioModel,
 };
 
 /**
@@ -34,48 +108,30 @@ export function createAIModel(
   modelId?: string
 ) {
   const providerInfo = getProviderInfo(provider);
-  const model = modelId || providerInfo?.defaultModel || "";
+  const normalizedCredentials = normalizeCredentials(provider, credentials);
+  const model =
+    modelId ||
+    (provider === "lmstudio" ? normalizedCredentials.model : undefined) ||
+    providerInfo?.defaultModel ||
+    "";
+  const factory = modelFactories[provider];
 
-  switch (provider) {
-    case "anthropic": {
-      const creds = credentials as unknown as AnthropicCredentials;
-      const anthropic = createAnthropic({
-        apiKey: creds.apiKey,
-      });
-      return anthropic(model);
-    }
-
-    case "bedrock": {
-      const creds = credentials as unknown as BedrockCredentials;
-      const bedrock = createAmazonBedrock({
-        accessKeyId: creds.accessKeyId,
-        secretAccessKey: creds.secretAccessKey,
-        region: creds.region,
-      });
-      return bedrock(model);
-    }
-
-    case "vertex": {
-      const creds = credentials as unknown as VertexCredentials;
-      const vertex = createVertex({
-        project: creds.projectId,
-        location: creds.location,
-      });
-      return vertex(model);
-    }
-
-    case "openai": {
-      const creds = credentials as unknown as OpenAICredentials;
-      const openai = createOpenAI({
-        apiKey: creds.apiKey,
-        baseURL: creds.baseUrl || undefined,
-      });
-      return openai(model);
-    }
-
-    default:
-      throw new Error(`Unsupported provider: ${provider}`);
+  if (!factory) {
+    throw new Error(`Unsupported provider: ${provider}`);
   }
+
+  return factory(normalizedCredentials, model);
+}
+
+function getFastModelId(provider: AIProvider, credentials: Record<string, string>): string {
+  const providerInfo = getProviderInfo(provider);
+
+  if (provider === "lmstudio") {
+    const creds = normalizeCredentials(provider, credentials) as unknown as LMStudioCredentials;
+    return creds.fastModel || creds.model || providerInfo?.fastModel || "";
+  }
+
+  return providerInfo?.fastModel || providerInfo?.defaultModel || "";
 }
 
 /**
@@ -87,7 +143,8 @@ export async function testAIConnection(
 ): Promise<{ success: boolean; message: string; latencyMs?: number }> {
   try {
     const startTime = Date.now();
-    const model = createAIModel(provider, credentials);
+    const normalizedCredentials = normalizeCredentials(provider, credentials);
+    const model = createAIModel(provider, normalizedCredentials);
 
     // Simple test prompt
     const { text } = await generateText({
@@ -114,6 +171,34 @@ export async function testAIConnection(
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
 
+    if (provider === "lmstudio") {
+      if (
+        message.includes("ECONNREFUSED") ||
+        message.includes("fetch failed") ||
+        message.includes("Failed to fetch")
+      ) {
+        return {
+          success: false,
+          message:
+            "Cannot reach LM Studio. Start the Local Server and check the base URL from this app.",
+        };
+      }
+      if (message.includes("404") || message.includes("Not Found")) {
+        return {
+          success: false,
+          message:
+            "LM Studio endpoint or model not found. Include /v1 in the base URL and use a loaded model ID.",
+        };
+      }
+      if (message.includes("timeout") || message.includes("ETIMEDOUT")) {
+        return {
+          success: false,
+          message:
+            "LM Studio timed out. Make sure the model is loaded and give local models time to warm up.",
+        };
+      }
+    }
+
     // Parse common error messages
     if (message.includes("401") || message.includes("Unauthorized")) {
       return { success: false, message: "Invalid API key or credentials" };
@@ -139,7 +224,8 @@ export async function saveAIConfig(
   provider: AIProvider,
   credentials: Record<string, string>
 ): Promise<void> {
-  const encryptedCredentials = encrypt(JSON.stringify(credentials));
+  const normalizedCredentials = normalizeCredentials(provider, credentials);
+  const encryptedCredentials = encrypt(JSON.stringify(normalizedCredentials));
 
   const existing = await db.select().from(settings).limit(1);
 
@@ -176,14 +262,27 @@ function getCredentialsFromEnv(): {
     };
   }
 
+  // Check LM Studio
+  if (process.env.LMSTUDIO_BASE_URL && process.env.LMSTUDIO_MODEL) {
+    return {
+      provider: "lmstudio",
+      credentials: normalizeCredentials("lmstudio", {
+        baseUrl: process.env.LMSTUDIO_BASE_URL,
+        model: process.env.LMSTUDIO_MODEL,
+        fastModel: process.env.LMSTUDIO_FAST_MODEL || "",
+        apiKey: process.env.LMSTUDIO_API_KEY || "lm-studio",
+      }),
+    };
+  }
+
   // Check OpenAI
   if (process.env.OPENAI_API_KEY) {
     return {
       provider: "openai",
-      credentials: {
+      credentials: normalizeCredentials("openai", {
         apiKey: process.env.OPENAI_API_KEY,
         baseUrl: process.env.OPENAI_BASE_URL || "",
-      },
+      }),
     };
   }
 
@@ -279,7 +378,7 @@ export async function getFastAIModel() {
     return null;
   }
 
-  const fastModelId = FAST_MODELS[config.provider];
+  const fastModelId = getFastModelId(config.provider, config.credentials);
   return createAIModel(config.provider, config.credentials, fastModelId);
 }
 

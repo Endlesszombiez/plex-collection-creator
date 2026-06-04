@@ -23,7 +23,7 @@ If you need help getting started creating collections in your Plex library, give
 | --------------------- | ---------------------------------------------------------------------------------------- |
 | **Docker Desktop**    | [Download here](https://www.docker.com/products/docker-desktop/) — free for personal use |
 | **Plex Media Server** | Running on your network                                                                  |
-| **AI API Key**        | From Anthropic, OpenAI, AWS Bedrock, or Google Vertex AI                                 |
+| **AI Provider**       | Anthropic, OpenAI, AWS Bedrock, Google Vertex AI, or LM Studio Local Server              |
 
 ---
 
@@ -61,9 +61,9 @@ Click **Connect with Plex** and sign in with your Plex account. The app will fin
 
 Select which movie and TV libraries you want to analyze.
 
-### Step 3: Add Your AI Key
+### Step 3: Add Your AI Provider
 
-Enter your API key from your chosen AI provider.
+Enter the credentials or local server settings for your chosen AI provider.
 
 ![Setup Complete](docs/images/03-setup-complete.png)
 
@@ -124,8 +124,24 @@ Want something specific? Use **Custom Search** to ask for anything:
 | **OpenAI**           | Sign up at [platform.openai.com](https://platform.openai.com), add a payment method, create an API key     |
 | **AWS Bedrock**      | Requires AWS account with Bedrock model access enabled                                                     |
 | **Google Vertex AI** | Requires GCP project with Vertex AI API enabled                                                            |
+| **LM Studio**        | Install LM Studio, load a model, and start the Local Server                                                |
 
 Cost-conscious design: The app uses smaller, faster models (like Claude Haiku) for validation and filtering tasks, reserving larger models (like Claude Sonnet) only for creative analysis. Be sure to keep an eye on your costs.
+
+---
+
+## Using LM Studio
+
+LM Studio lets the app talk to a local OpenAI-compatible server instead of a hosted AI API. Start the LM Studio Local Server, load a model, then configure:
+
+- **Base URL:** `http://localhost:1234/v1` when running the app locally
+- **Docker Base URL:** `http://host.docker.internal:1234/v1` when using Docker Desktop
+- **Model:** the loaded model identifier shown by LM Studio
+- **Fast Model:** optional smaller local model for validation and deduplication
+
+If the connection test fails, confirm the Local Server is running, the model is loaded, and the base URL includes `/v1`. Linux Docker users may need host networking or an `extra_hosts` entry if `host.docker.internal` is unavailable.
+
+Local models can be slower than hosted APIs, so analysis may take longer.
 
 ---
 
@@ -135,11 +151,12 @@ Cost-conscious design: The app uses smaller, faster models (like Claude Haiku) f
 
 - Your Plex token is stored in the local database
 - The app runs on your machine — no data is sent to us
+- With LM Studio, AI analysis also runs against your local LM Studio server
 
 **What gets sent to your AI provider:**
 
 - Movie and TV metadata (titles, years, directors, genres, summaries)
-- This is required for the AI to analyze your library and suggest collections
+- This is required for the configured AI provider to analyze your library and suggest collections
 
 Your Plex credentials are never sent to the AI provider.
 
@@ -147,7 +164,7 @@ Your Plex credentials are never sent to the AI provider.
 
 ## Credential Storage
 
-You need to provide an AI API key. There are two ways to do this:
+You need to provide AI provider settings. There are two ways to do this:
 
 **Option 1: Environment variables**
 
@@ -159,6 +176,12 @@ echo "ANTHROPIC_API_KEY=sk-ant-..." > .env
 
 # OR OpenAI
 echo "OPENAI_API_KEY=sk-..." > .env
+
+# OR LM Studio
+cat > .env << 'EOF'
+LMSTUDIO_BASE_URL=http://host.docker.internal:1234/v1
+LMSTUDIO_MODEL=loaded-model-id
+EOF
 
 # OR AWS Bedrock
 cat > .env << 'EOF'
