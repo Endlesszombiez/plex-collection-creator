@@ -27,7 +27,7 @@ import {
   parseValidationResponse,
   ParsedCollection,
 } from "@/lib/ai/prompts";
-import { getConfiguredAIModel, getFastAIModel } from "@/lib/ai/provider";
+import { getAIConfig, getConfiguredAIModel, getFastAIModel } from "@/lib/ai/provider";
 import { generateText } from "ai";
 
 export interface AnalysisProgress {
@@ -47,6 +47,8 @@ export interface AnalysisResult {
     validated: number;
   };
 }
+
+const LMSTUDIO_COMPLETENESS_PAGE_SIZE = 50;
 
 /**
  * Convert PlexMediaItem to MovieForEmbedding.
@@ -79,6 +81,77 @@ function toMovieInfo(item: PlexMediaItem): MovieInfo {
   };
 }
 
+function mergeCompletenessResults(
+  target: ReturnType<typeof parseCompletenessResponse>,
+  source: ReturnType<typeof parseCompletenessResponse>
+) {
+  const additionsByCollection = new Map(
+    target.additions.map((addition) => [
+      addition.collectionName.toLowerCase().trim(),
+      addition,
+    ])
+  );
+
+  for (const addition of source.additions) {
+    const key = addition.collectionName.toLowerCase().trim();
+    if (!key) continue;
+
+    const existing = additionsByCollection.get(key);
+    if (existing) {
+      const ids = new Set(existing.addMovieIds);
+      for (const id of addition.addMovieIds) {
+        ids.add(id);
+      }
+      existing.addMovieIds = Array.from(ids);
+      if (addition.reasoning && !existing.reasoning.includes(addition.reasoning)) {
+        existing.reasoning = [existing.reasoning, addition.reasoning]
+          .filter(Boolean)
+          .join(" ");
+      }
+    } else {
+      const nextAddition = {
+        ...addition,
+        addMovieIds: Array.from(new Set(addition.addMovieIds)),
+      };
+      target.additions.push(nextAddition);
+      additionsByCollection.set(key, nextAddition);
+    }
+  }
+
+  const newCollectionsByName = new Map(
+    target.newCollections.map((collection) => [
+      collection.name.toLowerCase().trim(),
+      collection,
+    ])
+  );
+
+  for (const collection of source.newCollections) {
+    const key = collection.name.toLowerCase().trim();
+    if (!key) continue;
+
+    const existing = newCollectionsByName.get(key);
+    if (existing) {
+      const ids = new Set(existing.movieIds);
+      for (const id of collection.movieIds) {
+        ids.add(id);
+      }
+      existing.movieIds = Array.from(ids);
+      if (collection.reasoning && !existing.reasoning.includes(collection.reasoning)) {
+        existing.reasoning = [existing.reasoning, collection.reasoning]
+          .filter(Boolean)
+          .join(" ");
+      }
+    } else {
+      const nextCollection = {
+        ...collection,
+        movieIds: Array.from(new Set(collection.movieIds)),
+      };
+      target.newCollections.push(nextCollection);
+      newCollectionsByName.set(key, nextCollection);
+    }
+  }
+}
+
 /**
  * MultiPassAnalyzer - orchestrates the 5-pass collection analysis.
  */
@@ -100,12 +173,15 @@ export class MultiPassAnalyzer {
     movies: PlexMediaItem[],
     existingCollections: PlexCollection[]
   ): Promise<AnalysisResult> {
+    const aiConfig = await getAIConfig();
     const model = await getConfiguredAIModel();
     const fastModel = await getFastAIModel();
 
     if (!model) {
       throw new Error("AI not configured");
     }
+
+    const usePagedCompletenessAudit = aiConfig.provider === "lmstudio";
 
     // Convert to internal formats
     const embeddingMovies = movies.map(toEmbeddingMovie);
@@ -299,20 +375,61 @@ export class MultiPassAnalyzer {
       reasoning: c.reasoning,
     }));
 
-    const completenessPrompt = createCompletenessPrompt(
-      suggestionsForAudit,
-      movieInfoMap,
-      existingNames
-    );
-
     try {
-      const { text } = await generateText({
-        model: model as Parameters<typeof generateText>[0]["model"],
-        system: COMPLETENESS_SYSTEM_PROMPT,
-        prompt: completenessPrompt,
-      });
+      const result = {
+        additions: [],
+        newCollections: [],
+      } as ReturnType<typeof parseCompletenessResponse>;
 
-      const result = parseCompletenessResponse(text);
+      if (usePagedCompletenessAudit) {
+        const movieCount = movieInfoMap.size;
+        const pageCount = Math.max(
+          1,
+          Math.ceil(movieCount / LMSTUDIO_COMPLETENESS_PAGE_SIZE)
+        );
+
+        for (let pageIndex = 0; pageIndex < pageCount; pageIndex++) {
+          const offset = pageIndex * LMSTUDIO_COMPLETENESS_PAGE_SIZE;
+          this.emit(
+            4,
+            "Completeness Audit",
+            `Checking library page ${pageIndex + 1} of ${pageCount}...`
+          );
+
+          const completenessPrompt = createCompletenessPrompt(
+            suggestionsForAudit,
+            movieInfoMap,
+            existingNames,
+            {
+              libraryItemOffset: offset,
+              libraryItemLimit: LMSTUDIO_COMPLETENESS_PAGE_SIZE,
+              totalLibraryItems: movieCount,
+            }
+          );
+
+          const { text } = await generateText({
+            model: model as Parameters<typeof generateText>[0]["model"],
+            system: COMPLETENESS_SYSTEM_PROMPT,
+            prompt: completenessPrompt,
+          });
+
+          mergeCompletenessResults(result, parseCompletenessResponse(text));
+        }
+      } else {
+        const completenessPrompt = createCompletenessPrompt(
+          suggestionsForAudit,
+          movieInfoMap,
+          existingNames
+        );
+
+        const { text } = await generateText({
+          model: model as Parameters<typeof generateText>[0]["model"],
+          system: COMPLETENESS_SYSTEM_PROMPT,
+          prompt: completenessPrompt,
+        });
+
+        mergeCompletenessResults(result, parseCompletenessResponse(text));
+      }
 
       // Apply additions to existing collections
       for (const addition of result.additions) {

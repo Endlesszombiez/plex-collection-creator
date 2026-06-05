@@ -298,7 +298,12 @@ You MUST respond with valid JSON only.`;
 export function createCompletenessPrompt(
   suggestedCollections: Array<{ name: string; movieIds: string[]; reasoning: string }>,
   allMovies: Map<string, MovieInfo>,
-  existingPlexCollections: string[]
+  existingPlexCollections: string[],
+  options?: {
+    libraryItemOffset?: number;
+    libraryItemLimit?: number;
+    totalLibraryItems?: number;
+  }
 ): string {
   // Format suggested collections
   const suggestedSection = suggestedCollections
@@ -316,12 +321,24 @@ export function createCompletenessPrompt(
     .join("\n");
 
   // Format all library items (limited)
-  const allMoviesSection = Array.from(allMovies.values())
-    .slice(0, 100)
+  const libraryItemOffset = options?.libraryItemOffset || 0;
+  const libraryItemLimit = options?.libraryItemLimit || 100;
+  const allMovieValues = Array.from(allMovies.values());
+  const totalLibraryItems = options?.totalLibraryItems || allMovieValues.length;
+  const visibleMovies = allMovieValues.slice(
+    libraryItemOffset,
+    libraryItemOffset + libraryItemLimit
+  );
+
+  const allMoviesSection = visibleMovies
     .map((m) => `[${m.ratingKey}] ${m.title} (${m.year || "N/A"}) - ${m.genres?.slice(0, 2).join(", ") || ""}`)
     .join("\n");
 
-  const moreMovies = allMovies.size > 100 ? `\n(+ ${allMovies.size - 100} more movies)` : "";
+  const skippedBefore =
+    libraryItemOffset > 0 ? `\n(+ ${libraryItemOffset} earlier library items not shown in this page)` : "";
+  const skippedAfter = libraryItemOffset + visibleMovies.length < totalLibraryItems
+    ? `\n(+ ${totalLibraryItems - libraryItemOffset - visibleMovies.length} later library items not shown in this page)`
+    : "";
 
   // Existing collections
   const existingSection =
@@ -335,7 +352,7 @@ ${suggestedSection}
 ${existingSection}
 
 ## Library Items
-${allMoviesSection}${moreMovies}
+${allMoviesSection}${skippedBefore}${skippedAfter}
 
 ## Your Tasks
 

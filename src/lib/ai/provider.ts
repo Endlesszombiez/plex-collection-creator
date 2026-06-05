@@ -20,6 +20,12 @@ function normalizeBaseUrl(baseUrl: string): string {
   return baseUrl.trim().replace(/\/+$/, "");
 }
 
+interface OpenAICompatibleModelsResponse {
+  data?: Array<{
+    id?: string;
+  }>;
+}
+
 export function normalizeCredentials(
   provider: AIProvider,
   credentials: Record<string, string>
@@ -132,6 +138,43 @@ function getFastModelId(provider: AIProvider, credentials: Record<string, string
   }
 
   return providerInfo?.fastModel || providerInfo?.defaultModel || "";
+}
+
+export async function listAIProviderModels(
+  provider: AIProvider,
+  credentials: Record<string, string>
+): Promise<string[]> {
+  const normalizedCredentials = normalizeCredentials(provider, credentials);
+
+  if (provider !== "lmstudio" && provider !== "openai") {
+    return [];
+  }
+
+  const baseUrl =
+    provider === "lmstudio"
+      ? normalizedCredentials.baseUrl
+      : normalizedCredentials.baseUrl || "https://api.openai.com/v1";
+
+  if (!baseUrl) {
+    return [];
+  }
+
+  const headers: HeadersInit = {};
+  const apiKey = normalizedCredentials.apiKey;
+  if (apiKey) {
+    headers.Authorization = `Bearer ${apiKey}`;
+  }
+
+  const response = await fetch(`${baseUrl}/models`, { headers });
+
+  if (!response.ok) {
+    throw new Error(`Model lookup failed with status ${response.status}`);
+  }
+
+  const payload = (await response.json()) as OpenAICompatibleModelsResponse;
+  return (payload.data || [])
+    .map((model) => model.id)
+    .filter((modelId): modelId is string => Boolean(modelId));
 }
 
 /**

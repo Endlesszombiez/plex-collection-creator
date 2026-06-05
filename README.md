@@ -136,7 +136,7 @@ LM Studio lets the app talk to a local OpenAI-compatible server instead of a hos
 
 - **Base URL:** `http://localhost:1234/v1` when running the app locally
 - **Docker Base URL:** `http://host.docker.internal:1234/v1` when using Docker Desktop
-- **Model:** the loaded model identifier shown by LM Studio
+- **Model:** use **Find Loaded Models** to import the model ID from LM Studio
 - **Fast Model:** optional smaller local model for validation and deduplication
 
 If the connection test fails, confirm the Local Server is running, the model is loaded, and the base URL includes `/v1`. Linux Docker users may need host networking or an `extra_hosts` entry if `host.docker.internal` is unavailable.

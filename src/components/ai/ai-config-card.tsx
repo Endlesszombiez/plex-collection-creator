@@ -72,6 +72,9 @@ export function AIConfigCard({ onComplete }: AIConfigCardProps) {
   );
   const [credentials, setCredentials] = useState<Record<string, string>>({});
   const [showForm, setShowForm] = useState(false);
+  const [modelOptions, setModelOptions] = useState<string[]>([]);
+  const [isLoadingModels, setIsLoadingModels] = useState(false);
+  const [modelLookupMessage, setModelLookupMessage] = useState<string | null>(null);
 
   const providerInfo = getProviderInfo(selectedProvider);
 
@@ -79,12 +82,57 @@ export function AIConfigCard({ onComplete }: AIConfigCardProps) {
   const handleProviderChange = (provider: AIProvider) => {
     setSelectedProvider(provider);
     setCredentials({});
+    setModelOptions([]);
+    setModelLookupMessage(null);
     clearTestResult();
   };
 
   const handleFieldChange = (key: string, value: string) => {
     setCredentials((prev) => ({ ...prev, [key]: value }));
+    if (key === "baseUrl") {
+      setModelOptions([]);
+      setModelLookupMessage(null);
+    }
     clearTestResult();
+  };
+
+  const handleLoadModels = async () => {
+    setIsLoadingModels(true);
+    setModelLookupMessage(null);
+    clearTestResult();
+
+    try {
+      const response = await fetch("/api/ai/models", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider: selectedProvider, credentials }),
+      });
+      const data = await response.json();
+
+      if (!data.success) {
+        setModelLookupMessage(data.error || "Failed to load models");
+        return;
+      }
+
+      const models = Array.isArray(data.models) ? data.models : [];
+      setModelOptions(models);
+
+      if (models.length === 0) {
+        setModelLookupMessage("No models were returned. Load a model in LM Studio and try again.");
+        return;
+      }
+
+      setCredentials((prev) => ({
+        ...prev,
+        model: prev.model || models[0],
+        fastModel: prev.fastModel || prev.model || models[0],
+      }));
+      setModelLookupMessage(`Found ${models.length} model${models.length === 1 ? "" : "s"}.`);
+    } catch (err) {
+      setModelLookupMessage(err instanceof Error ? err.message : "Failed to load models");
+    } finally {
+      setIsLoadingModels(false);
+    }
   };
 
   const handleTest = async () => {
@@ -241,6 +289,19 @@ export function AIConfigCard({ onComplete }: AIConfigCardProps) {
                   </option>
                 ))}
               </select>
+            ) : selectedProvider === "lmstudio" && (field.key === "model" || field.key === "fastModel") && modelOptions.length > 0 ? (
+              <select
+                value={credentials[field.key] || ""}
+                onChange={(e) => handleFieldChange(field.key, e.target.value)}
+                className="w-full px-3 py-2.5 rounded-lg bg-white/5 border border-white/10 text-white focus:border-[#E5A00D]/50 focus:ring-1 focus:ring-[#E5A00D]/50 outline-none transition-all"
+              >
+                <option value="" className="bg-[#1a1a1a]">Select {field.label.toLowerCase()}...</option>
+                {modelOptions.map((model) => (
+                  <option key={model} value={model} className="bg-[#1a1a1a]">
+                    {model}
+                  </option>
+                ))}
+              </select>
             ) : (
               <input
                 type={field.type}
@@ -253,8 +314,31 @@ export function AIConfigCard({ onComplete }: AIConfigCardProps) {
             {field.helpText && (
               <p className="text-xs text-white/40 mt-1">{field.helpText}</p>
             )}
+            {selectedProvider === "lmstudio" && field.key === "baseUrl" && (
+              <button
+                type="button"
+                onClick={handleLoadModels}
+                disabled={!credentials.baseUrl || isLoadingModels}
+                className="mt-2 inline-flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium bg-white/5 hover:bg-white/10 text-white/60 hover:text-white border border-white/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isLoadingModels ? (
+                  <>
+                    <LoadingSpinner className="h-3.5 w-3.5" />
+                    Loading models...
+                  </>
+                ) : (
+                  "Find Loaded Models"
+                )}
+              </button>
+            )}
           </div>
         ))}
+
+        {selectedProvider === "lmstudio" && modelLookupMessage && (
+          <div className="p-3 rounded-lg bg-white/5 border border-white/10">
+            <p className="text-sm text-white/60">{modelLookupMessage}</p>
+          </div>
+        )}
 
         {/* Test Result */}
         {testResult && (
