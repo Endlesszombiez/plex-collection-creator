@@ -9,6 +9,7 @@ let modelLoading: Promise<Awaited<ReturnType<typeof pipeline>>> | null = null;
 
 const MODEL_NAME = "Xenova/all-MiniLM-L6-v2";
 const MODEL_VERSION = "v1"; // Increment to invalidate all cached embeddings
+const SQLITE_PARAMETER_BATCH_SIZE = 500;
 
 export type EmbeddingType = "title" | "summary" | "creator";
 
@@ -99,6 +100,14 @@ function computeMetadataHash(movie: MovieForEmbedding): string {
   return crypto.createHash("md5").update(key).digest("hex");
 }
 
+function chunkArray<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    chunks.push(items.slice(i, i + size));
+  }
+  return chunks;
+}
+
 /**
  * Get cached embeddings for movies.
  */
@@ -109,10 +118,16 @@ async function getCachedEmbeddings(
   const result = new Map<string, number[]>();
   if (movieIds.length === 0) return result;
 
-  const cached = await db
-    .select()
-    .from(movieEmbeddings)
-    .where(inArray(movieEmbeddings.movieId, movieIds));
+  const cached = (
+    await Promise.all(
+      chunkArray(movieIds, SQLITE_PARAMETER_BATCH_SIZE).map((batch) =>
+        db
+          .select()
+          .from(movieEmbeddings)
+          .where(inArray(movieEmbeddings.movieId, batch))
+      )
+    )
+  ).flat();
 
   for (const row of cached) {
     // Check model version
@@ -299,9 +314,11 @@ export class EmbeddingService {
   async invalidate(movieIds: string[]): Promise<void> {
     if (movieIds.length === 0) return;
 
-    await db
-      .delete(movieEmbeddings)
-      .where(inArray(movieEmbeddings.movieId, movieIds));
+    for (const batch of chunkArray(movieIds, SQLITE_PARAMETER_BATCH_SIZE)) {
+      await db
+        .delete(movieEmbeddings)
+        .where(inArray(movieEmbeddings.movieId, batch));
+    }
   }
 
   /**
