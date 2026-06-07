@@ -21,7 +21,7 @@ import {
 } from "@/lib/ai/prompts";
 import { EnrichedItem, buildMediaLookup } from "@/lib/suggestion-utils";
 import { generateText } from "ai";
-import { eq, desc, inArray, and } from "drizzle-orm";
+import { eq, desc, inArray, and, sql } from "drizzle-orm";
 import { embeddingQueryService, MovieForEmbedding } from "@/lib/embeddings/embedding-service";
 
 export const dynamic = "force-dynamic";
@@ -584,7 +584,7 @@ export async function GET(request: Request) {
           // Enrich items with title and year
           const enrichedItems = enrichItems(collection.items, mediaLookup);
 
-          const result = await db
+          await db
             .insert(suggestions)
             .values({
               scanId,
@@ -594,10 +594,13 @@ export async function GET(request: Request) {
               reasoning: collection.reasoning,
               status: "pending",
               customPrompt: customPrompt.trim(),
-            })
-            .returning();
+            });
 
-          suggestionIds.push(result[0].id);
+          const result = await db.get<{ id: number }>(
+            sql`select last_insert_rowid() as id`
+          );
+
+          suggestionIds.push(result.id);
         }
 
         // Send completion

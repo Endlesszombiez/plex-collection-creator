@@ -4,7 +4,7 @@ import { getPlexToken } from "@/lib/plex/auth";
 import { getConfiguredAIModel } from "@/lib/ai/provider";
 import { createMultiPassAnalyzer } from "@/lib/embeddings/multi-pass-analyzer";
 import { EnrichedItem, buildMediaLookup } from "@/lib/suggestion-utils";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, sql } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120; // Allow up to 2 minutes for AI analysis
@@ -244,7 +244,7 @@ export async function GET(request: Request) {
           // Enrich items with title and year
           const enrichedItems = enrichItems(collection.items, mediaLookup);
 
-          const result = await db
+          await db
             .insert(suggestions)
             .values({
               scanId,
@@ -253,10 +253,13 @@ export async function GET(request: Request) {
               itemCount: enrichedItems.length,
               reasoning: collection.reasoning,
               status: "pending",
-            })
-            .returning();
+            });
 
-          suggestionIds.push(result[0].id);
+          const result = await db.get<{ id: number }>(
+            sql`select last_insert_rowid() as id`
+          );
+
+          suggestionIds.push(result.id);
         }
 
         // Send completion

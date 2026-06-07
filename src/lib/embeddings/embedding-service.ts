@@ -1,5 +1,5 @@
 import { db, movieEmbeddings } from "@/lib/db";
-import { eq, inArray } from "drizzle-orm";
+import { inArray } from "drizzle-orm";
 import crypto from "crypto";
 
 // Dynamic import for @xenova/transformers (ESM module)
@@ -173,46 +173,36 @@ async function saveEmbeddings(
     const metadataHash = computeMetadataHash(movie);
     const embeddingJson = JSON.stringify(embedding);
 
-    // Check if row exists
-    const existing = await db
-      .select()
-      .from(movieEmbeddings)
-      .where(eq(movieEmbeddings.movieId, movieId))
-      .limit(1);
+    const updateData: Partial<typeof movieEmbeddings.$inferInsert> = {
+      metadataHash,
+      modelVersion: MODEL_VERSION,
+    };
+    switch (type) {
+      case "title":
+        updateData.titleEmbedding = embeddingJson;
+        break;
+      case "summary":
+        updateData.summaryEmbedding = embeddingJson;
+        break;
+      case "creator":
+        updateData.creatorEmbedding = embeddingJson;
+        break;
+    }
 
-    if (existing.length > 0) {
-      // Update specific embedding column
-      const updateData: Record<string, string> = {
-        metadataHash,
-        modelVersion: MODEL_VERSION,
-      };
-      switch (type) {
-        case "title":
-          updateData.titleEmbedding = embeddingJson;
-          break;
-        case "summary":
-          updateData.summaryEmbedding = embeddingJson;
-          break;
-        case "creator":
-          updateData.creatorEmbedding = embeddingJson;
-          break;
-      }
-
-      await db
-        .update(movieEmbeddings)
-        .set(updateData)
-        .where(eq(movieEmbeddings.movieId, movieId));
-    } else {
-      // Insert new row
-      await db.insert(movieEmbeddings).values({
+    await db
+      .insert(movieEmbeddings)
+      .values({
         movieId,
         metadataHash,
         modelVersion: MODEL_VERSION,
         titleEmbedding: type === "title" ? embeddingJson : null,
         summaryEmbedding: type === "summary" ? embeddingJson : null,
         creatorEmbedding: type === "creator" ? embeddingJson : null,
+      })
+      .onConflictDoUpdate({
+        target: movieEmbeddings.movieId,
+        set: updateData,
       });
-    }
   }
 }
 
